@@ -22,9 +22,9 @@ const FAQS: FaqItem[] = [
       "Standard PDF and Word converters copy redundant margins, headers, footers, repeated watermarks, and broken line-wraps into the prompt. Our cleaning algorithm strips all formatting noise and reconstructs spreadsheets into concise GitHub-flavored Markdown tables, saving up to 40% of context tokens.",
   },
   {
-    question: "How does the $1.99 Quick Pass work?",
+    question: "How does the ₹99 ($1.99) Quick Pass work?",
     answer:
-      "The Quick Pass is designed for people who have a single assignment, tax filing, or work project and don't want another recurring monthly subscription. You pay $1.99 once, and your browser is unlocked for 48 hours of unlimited conversions and batch uploads.",
+      "The Quick Pass is designed for people who have a single assignment, tax filing, or work project and don't want another recurring monthly subscription. You pay ₹99 ($1.99) once, and your browser is unlocked for 48 hours of unlimited conversions and batch uploads.",
   },
   {
     question: "Can I install and use this as an npm package in my own codebase?",

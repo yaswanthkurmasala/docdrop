@@ -16,19 +16,13 @@ import {
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { useAuth } from "@/context/AuthContext";
+import { resolvePlanAmountInr } from "@/lib/pricing-plans";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedPlan: { name: string; price: string } | null;
   onUnlockPro: () => void;
-}
-
-function getInrAmount(planPrice: string): number {
-  if (planPrice.includes("1.99") || planPrice.includes("99")) return 99;
-  if (planPrice.includes("2.99") || planPrice.includes("199")) return 199;
-  if (planPrice.includes("18.99") || planPrice.includes("799")) return 799;
-  return 149;
 }
 
 export function CheckoutModal({
@@ -52,8 +46,8 @@ export function CheckoutModal({
   }, [user, email]);
 
   const planName = selectedPlan?.name || "Pro Pass";
-  const planPrice = selectedPlan?.price || "$1.99";
-  const inrAmount = getInrAmount(planPrice);
+  const planPrice = selectedPlan?.price || "₹99";
+  const { amount: inrAmount, display: inrDisplay } = resolvePlanAmountInr(planName, planPrice);
 
   const handleCashfreePayment = async (e: React.FormEvent) => {
     e.preventDefault();

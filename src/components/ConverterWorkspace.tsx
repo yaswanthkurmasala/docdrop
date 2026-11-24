@@ -459,7 +459,7 @@ Please review the document above and assist me with the following:
                       onClick={onOpenPricing}
                       className="mt-2 text-xs font-semibold text-red-900 underline hover:no-underline"
                     >
-                      View affordable Pro plans (from $1.99) &rarr;
+                      View affordable Pro plans (from ₹99) &rarr;
                     </button>
                   )}
                 </div>

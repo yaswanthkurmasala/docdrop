@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCashfreeClient } from "@/lib/cashfree";
-
-function calculateAmountInInr(planPrice: string): number {
-  if (planPrice.includes("1.99") || planPrice.includes("99")) return 99;
-  if (planPrice.includes("2.99") || planPrice.includes("199")) return 199;
-  if (planPrice.includes("18.99") || planPrice.includes("799")) return 799;
-  return 149;
-}
+import { resolvePlanAmountInr } from "@/lib/pricing-plans";
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +14,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const orderAmount = calculateAmountInInr(planPrice || "");
+    const { amount: orderAmount } = resolvePlanAmountInr(planName || "", planPrice || "");
     const orderId = `docdrop_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const cleanPhone = (customerPhone || "9999999999").replace(/[^0-9]/g, "").slice(-10) || "9999999999";
     const cleanName = customerName || customerEmail.split("@")[0].replace(/[._]/g, " ") || "DocDrop Member";
