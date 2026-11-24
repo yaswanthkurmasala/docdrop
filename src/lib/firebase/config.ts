@@ -12,33 +12,48 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+let app: FirebaseApp | undefined = undefined;
+let auth: Auth | undefined = undefined;
+let db: Firestore | undefined = undefined;
+let storage: FirebaseStorage | undefined = undefined;
 
-if (typeof window !== "undefined") {
-  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  
-  const customDbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID;
-  if (customDbId && customDbId !== "(default)") {
+const hasValidApiKey =
+  typeof firebaseConfig.apiKey === "string" &&
+  firebaseConfig.apiKey.trim().length > 10 &&
+  !firebaseConfig.apiKey.includes("your-");
+
+if (hasValidApiKey) {
+  try {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     try {
-      db = getFirestore(app, customDbId);
-    } catch {
-      db = getFirestore(app);
+      auth = getAuth(app);
+    } catch (e) {
+      console.warn("Firebase Auth init warning:", e);
     }
-  } else {
-    db = getFirestore(app);
-  }
 
-  storage = getStorage(app);
-} else {
-  // Server-side fallback placeholder
-  app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
+    const customDbId = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_ID;
+    if (customDbId && customDbId !== "(default)") {
+      try {
+        db = getFirestore(app, customDbId);
+      } catch {
+        db = getFirestore(app);
+      }
+    } else {
+      try {
+        db = getFirestore(app);
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      storage = getStorage(app);
+    } catch {
+      // ignore
+    }
+  } catch (err) {
+    console.warn("Firebase init skipped:", err);
+  }
 }
 
 export { app, auth, db, storage };
