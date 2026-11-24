@@ -154,6 +154,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (auth) {
         const authProvider =
           provider === "google" ? new GoogleAuthProvider() : new GithubAuthProvider();
+        if (provider === "google") {
+          (authProvider as GoogleAuthProvider).setCustomParameters({ prompt: "select_account" });
+        }
         await signInWithPopup(auth, authProvider);
       } else {
         // Fallback local session when Firebase is not configured on production
