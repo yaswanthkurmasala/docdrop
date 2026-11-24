@@ -16,7 +16,7 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10 lg:gap-8 pb-12 border-b border-zinc-200/80 dark:border-zinc-800/80">
           {/* Column 1 & 2: Brand Identity & Privacy Indicator */}
           <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-4">
-            <BrandLogo size="md" showSubtitle={true} />
+            <BrandLogo size="md" />
 
             <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-sm font-sans">
               Private client-side document instruments and conversion studio.
