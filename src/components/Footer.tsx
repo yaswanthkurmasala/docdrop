@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { ShieldCheck, Cpu, ArrowUpRight, FileText, FileSpreadsheet, Sparkles } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 
@@ -42,49 +43,58 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a
-                  href="#converter"
+                <Link
+                  href="/tools/pdf-to-markdown"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
                   <span>PDF to Markdown</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#all-tools"
+                <Link
+                  href="/tools/merge-pdf"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Merge & Split PDF</span>
+                  <span>Merge PDF</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#all-tools"
+                <Link
+                  href="/tools/split-pdf"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Redact & Blackout</span>
+                  <span>Split PDF</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#all-tools"
+                <Link
+                  href="/tools/pdf-to-word"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Digital Signatures</span>
+                  <span>PDF to Word</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#all-tools"
+                <Link
+                  href="/tools/compress-pdf"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Compress & Repair</span>
+                  <span>Compress &amp; Repair PDF</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/tools/redact-pdf"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
+                >
+                  <span>Redact &amp; Sign PDF</span>
+                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </Link>
               </li>
             </ul>
           </div>
@@ -121,40 +131,40 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <a
-                  href="#features"
+                <Link
+                  href="/#features"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Features & Architecture</span>
+                  <span>Features &amp; Architecture</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
                 <a
                   href="#pricing"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Affordable Passes</span>
+                  <span>Affordable Passes (from ₹99)</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
               </li>
               <li>
-                <a
-                  href="#faq"
+                <Link
+                  href="/#faq"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>FAQ & Privacy Guarantee</span>
+                  <span>FAQ &amp; Privacy Guarantee</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
               <li>
-                <a
+                <Link
                   href="/contact"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Contact & Support</span>
+                  <span>Contact &amp; Support</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

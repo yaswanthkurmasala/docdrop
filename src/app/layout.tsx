@@ -2,29 +2,66 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { GLOBAL_SEO_KEYWORDS, SITE_NAME, SITE_URL } from "@/lib/seo-data";
 
 export const metadata: Metadata = {
-  title: "DocDrop — Drop it. Done. Private In-Browser Document & PDF Studio",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "DocDrop — Free Private PDF Tools & Document Converter (No Upload)",
+    template: "%s",
+  },
   description:
-    "Drop any document to convert, compress, edit, split, and audit 100% inside your browser memory. All-in-one private PDF tools with zero server uploads and total data privacy.",
-  keywords: [
-    "DocDrop",
-    "drag and drop pdf",
-    "pdf to markdown",
-    "docx to markdown",
-    "excel to markdown table",
-    "split pdf",
-    "remove pdf pages",
-    "repair pdf",
-    "ocr text audit",
-    "pdf to word",
-    "private pdf editor",
-    "private document converter",
-  ],
+    "Drop any PDF, Word, Excel, or image to merge, split, compress, convert to Markdown/Word/Excel, sign, or redact 100% locally in your browser. Zero cloud uploads, instant speed.",
+  keywords: GLOBAL_SEO_KEYWORDS,
+  authors: [{ name: "DocDrop Studio", url: SITE_URL }],
+  creator: "DocDrop Studio",
+  publisher: "DocDrop Studio",
+  applicationName: SITE_NAME,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: "DocDrop — Private In-Browser PDF & Document Studio (Zero Uploads)",
+    description:
+      "30+ free PDF and document tools running 100% inside your browser RAM. Merge, Split, Compress, PDF to Word, PDF to Excel, PDF to Markdown, OCR, Sign & Redact privately.",
+    images: [
+      {
+        url: "/logo.png",
+        width: 237,
+        height: 237,
+        alt: "DocDrop Official Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DocDrop — Private In-Browser PDF & Document Studio",
+    description:
+      "30+ free PDF & document instruments with zero cloud uploads. Merge, Split, Compress, PDF to Word, Excel, and LLM Markdown.",
+    images: ["/logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo.png", type: "image/png" },
+    ],
     shortcut: "/logo.png",
-    apple: "/logo.png",
+    apple: "/icon-192.png",
   },
 };
 

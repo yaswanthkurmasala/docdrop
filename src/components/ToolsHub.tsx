@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import {
   Search,
@@ -266,46 +267,54 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
           const isActive = activeToolId === tool.id;
 
           return (
-            <motion.div
+            <Link
               key={tool.id}
-              whileHover={{ y: -2, transition: motionTokens.spring.snappy }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                onSelectTool(tool.id);
-                const el = document.getElementById("active-tool-workspace");
-                el?.scrollIntoView({ behavior: "smooth" });
+              href={`/tools/${tool.id}`}
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                  e.preventDefault();
+                  onSelectTool(tool.id);
+                  const el = document.getElementById("active-tool-workspace");
+                  el?.scrollIntoView({ behavior: "smooth" });
+                }
               }}
-              className={`group p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
-                isActive
-                  ? "border-zinc-950 dark:border-white bg-white dark:bg-zinc-900 ring-1 ring-zinc-950 dark:ring-white shadow-xs"
-                  : "border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-400 dark:hover:border-zinc-700 hover:shadow-xs"
-              }`}
+              className="block h-full"
             >
-              <div>
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className={`p-2 rounded-lg border shadow-2xs ${getCategoryBg(tool.category)}`}>
-                    {getToolIcon(tool.id)}
+              <motion.div
+                whileHover={{ y: -2, transition: motionTokens.spring.snappy }}
+                whileTap={{ scale: 0.98 }}
+                className={`group h-full p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
+                  isActive
+                    ? "border-zinc-950 dark:border-white bg-white dark:bg-zinc-900 ring-1 ring-zinc-950 dark:ring-white shadow-xs"
+                    : "border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-400 dark:hover:border-zinc-700 hover:shadow-xs"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className={`p-2 rounded-lg border shadow-2xs ${getCategoryBg(tool.category)}`}>
+                      {getToolIcon(tool.id)}
+                    </div>
+                    {tool.badge && renderToolBadge(tool.badge)}
                   </div>
-                  {tool.badge && renderToolBadge(tool.badge)}
+
+                  <h3 className="text-xs sm:text-[13px] font-bold font-sans-display tracking-tight text-zinc-950 dark:text-white mb-1 leading-snug">
+                    <span>{tool.name}</span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                    {tool.description}
+                  </p>
                 </div>
 
-                <h3 className="text-xs sm:text-[13px] font-bold font-sans-display tracking-tight text-zinc-950 dark:text-white mb-1 leading-snug">
-                  <span>{tool.name}</span>
-                </h3>
-                <p className="text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
-                  {tool.description}
-                </p>
-              </div>
-
-              <div className="mt-3.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-                <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400 dark:text-zinc-500 font-medium">
-                  {tool.categoryLabel.split(" ")[0]}
-                </span>
-                <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-zinc-700 dark:text-zinc-300">
-                  {isActive ? "Active Now" : "Open Tool"} &rarr;
-                </span>
-              </div>
-            </motion.div>
+                <div className="mt-3.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400 dark:text-zinc-500 font-medium">
+                    {tool.categoryLabel.split(" ")[0]}
+                  </span>
+                  <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-zinc-700 dark:text-zinc-300">
+                    {isActive ? "Active Now" : "Open Tool"} &rarr;
+                  </span>
+                </div>
+              </motion.div>
+            </Link>
           );
         })}
       </div>
