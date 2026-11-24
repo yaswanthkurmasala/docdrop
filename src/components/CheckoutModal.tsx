@@ -121,7 +121,7 @@ export function CheckoutModal({
               });
               const verifyData = await verifyRes.json();
 
-              if (verifyData.success || verifyData.orderStatus === "PAID") {
+              if (verifyData.verified === true && verifyData.orderStatus === "PAID") {
                 onUnlockPro();
                 try {
                   confetti({
@@ -130,21 +130,17 @@ export function CheckoutModal({
                     origin: { y: 0.6 },
                   });
                 } catch {}
-                setStatus("Payment successful! Pro Pass unlocked.");
+                setStatus("Payment verified! Pro Pass unlocked.");
                 setTimeout(() => {
                   onClose();
                 }, 1200);
               } else {
-                // If payment is pending or processing, still grant access or notify
-                onUnlockPro();
-                setStatus("Payment submitted. Pro instruments activated!");
-                setTimeout(() => {
-                  onClose();
-                }, 1200);
+                setStatus(
+                  `Payment status: ${verifyData.orderStatus || "PENDING"}. Pro activates only after bank confirmation.`
+                );
               }
             } catch {
-              onUnlockPro();
-              onClose();
+              setStatus("Could not confirm payment verification with server. Please contact support with your Order ID.");
             }
           }
           setIsLoading(false);
@@ -161,28 +157,44 @@ export function CheckoutModal({
     }
   };
 
-  const handleActivateLicense = (e: React.FormEvent) => {
+  const handleActivateLicense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!licenseKey.trim()) {
       setStatus("Please enter a valid license key.");
       return;
     }
 
-    setStatus("Verifying license key...");
-    setTimeout(() => {
-      onUnlockPro();
-      try {
-        confetti({
-          particleCount: 70,
-          spread: 80,
-          origin: { y: 0.6 },
-        });
-      } catch {}
-      setStatus("License key verified! Pro instruments unlocked.");
-      setTimeout(() => {
-        onClose();
-      }, 700);
-    }, 600);
+    setIsLoading(true);
+    setStatus("Verifying license key with server...");
+    try {
+      const res = await fetch("/api/license/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey: licenseKey.trim() }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.valid) {
+        onUnlockPro();
+        try {
+          confetti({
+            particleCount: 70,
+            spread: 80,
+            origin: { y: 0.6 },
+          });
+        } catch {}
+        setStatus("License key verified! Pro instruments unlocked.");
+        setTimeout(() => {
+          onClose();
+        }, 700);
+      } else {
+        setStatus(data.error || "Invalid or expired license key.");
+      }
+    } catch {
+      setStatus("Unable to reach verification server. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

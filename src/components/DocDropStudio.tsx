@@ -54,9 +54,25 @@ export function DocDropStudio({
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("payment") === "success") {
-        handleUnlockPro();
-        window.history.replaceState({}, document.title, window.location.pathname);
+      const orderId = params.get("order_id");
+      const shouldVerify = params.get("verify_payment") === "1";
+
+      if (shouldVerify && orderId) {
+        fetch("/api/cashfree/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.verified === true && data.orderStatus === "PAID") {
+              handleUnlockPro();
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          });
       }
     }
   }, [user]);

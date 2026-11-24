@@ -1,19 +1,6 @@
 import { NextResponse } from "next/server";
 
-const decodeKey = (encoded: string): string => {
-  try {
-    return Buffer.from(encoded, "base64").toString("utf-8");
-  } catch {
-    return "";
-  }
-};
-
-const DEFAULT_GEMINI_KEY = decodeKey("QVEuQWI4Uk42SXBvTUF4NGllckU3REM5ajZwaVU0YmUtVXlNZEd6S0oyOGVOTXBST0JtT0E=");
-
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY ||
-  process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-  DEFAULT_GEMINI_KEY;
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
