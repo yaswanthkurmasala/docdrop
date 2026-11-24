@@ -31,6 +31,7 @@ import {
 import { createSamplePdfFile } from "@/lib/pdf-tools/sample-pdf";
 import { loadPdfJs } from "@/lib/pdf-tools/common/pdfjs-loader";
 import { useAuth } from "@/context/AuthContext";
+import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
 
@@ -205,6 +206,23 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
   const handleMerge = async () => {
     if (fileItems.length < 2) {
       setError("Please add at least 2 PDF files to merge.");
+      return;
+    }
+
+    const combinedSizeBytes = fileItems.reduce((sum, item) => sum + item.size, 0);
+    const maxMb = isPro ? PRO_TIER_LIMITS.maxFileSizeMb : FREE_TIER_LIMITS.maxFileSizeMb;
+    if (combinedSizeBytes > maxMb * 1024 * 1024) {
+      setError(
+        `Combined file size (${(combinedSizeBytes / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb}MB limit for Free tier. Upgrade to Quick Pass (₹49) or Pro for large merges.`
+      );
+      return;
+    }
+
+    const totalPages = fileItems.reduce((sum, item) => sum + (item.pageCount || 0), 0);
+    if (!isPro && totalPages > FREE_TIER_LIMITS.maxPages) {
+      setError(
+        `Combined page count (${totalPages} pages) exceeds the ${FREE_TIER_LIMITS.maxPages}-page Free limit. Upgrade to Quick Pass (₹49) or Pro for large documents.`
+      );
       return;
     }
 

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { motionTokens } from "@/lib/motion-tokens";
+import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { convertDocument, chunkMarkdown, estimateTokens, estimateCost, type ConversionResult, type MarkdownChunk } from "@/lib/converter";
 import { SAMPLE_DOCUMENTS } from "@/lib/sample-docs";
 import {
@@ -82,14 +83,24 @@ export function ConverterWorkspace({ isPro, onOpenPricing }: ConverterWorkspaceP
     setIsProcessing(true);
 
     try {
-      const maxMb = isPro ? 500 : 15;
+      const maxMb = isPro ? PRO_TIER_LIMITS.maxFileSizeMb : FREE_TIER_LIMITS.maxFileSizeMb;
       if (file.size > maxMb * 1024 * 1024) {
         throw new Error(
-          `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb}MB limit for Free tier. Upgrade to Pro or Quick Pass for large files up to 100MB+.`
+          `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb}MB limit for Free tier. Upgrade to Quick Pass (₹49) or Pro for large files up to 500MB.`
         );
       }
 
       const conversion = await convertDocument(file);
+      if (
+        !isPro &&
+        conversion.metadata?.pageCount &&
+        conversion.metadata.pageCount > FREE_TIER_LIMITS.maxPages
+      ) {
+        throw new Error(
+          `Document has ${conversion.metadata.pageCount} pages, exceeding the ${FREE_TIER_LIMITS.maxPages}-page Free limit. Upgrade to Quick Pass (₹49) or Pro for large documents.`
+        );
+      }
+
       setResult(conversion);
 
       const initialChunks = chunkMarkdown(conversion.markdown, { chunkSizeTokens: chunkSize });

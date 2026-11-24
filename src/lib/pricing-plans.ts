@@ -1,3 +1,14 @@
+export const FREE_TIER_LIMITS = {
+  maxFileSizeMb: 50,
+  maxPages: 50,
+  maxBatchFiles: 10,
+};
+
+export const PRO_TIER_LIMITS = {
+  maxFileSizeMb: 500,
+  maxPages: 1000,
+};
+
 export interface PlanDefinition {
   id: string;
   name: string;

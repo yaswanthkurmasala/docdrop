@@ -142,6 +142,8 @@ import {
   extractTextFromPdf,
 } from "@/lib/pdf-tools/suite";
 import { callGeminiAi } from "@/lib/gemini";
+import { getPdfPageCount } from "@/lib/pdf-tools/merge-pdf";
+import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { useAuth } from "@/context/AuthContext";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
@@ -1436,15 +1438,29 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
     try {
       // Plan tier validation
-      const maxMb = isPro ? 500 : 25;
+      const maxMb = isPro ? PRO_TIER_LIMITS.maxFileSizeMb : FREE_TIER_LIMITS.maxFileSizeMb;
       if (file && file.size > maxMb * 1024 * 1024) {
         throw new Error(
-          `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb}MB limit for Free tier. Upgrade to Pro or Quick Pass for large files up to 100MB+.`
+          `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${maxMb}MB limit for Free tier. Upgrade to Quick Pass (₹49) or Pro for large files up to 500MB.`
         );
       }
-      if (isMultiFileMode && !isPro && multiFiles.length > 10) {
+      if (
+        file &&
+        !isPro &&
+        file.name.toLowerCase().endsWith(".pdf") &&
+        toolId !== "unlock-pdf" &&
+        toolId !== "repair-pdf"
+      ) {
+        const pageCount = await getPdfPageCount(file).catch(() => 0);
+        if (pageCount > FREE_TIER_LIMITS.maxPages) {
+          throw new Error(
+            `Document has ${pageCount} pages, exceeding the ${FREE_TIER_LIMITS.maxPages}-page limit for Free tier. Upgrade to Quick Pass (₹49) or Pro for up to 300+ pages.`
+          );
+        }
+      }
+      if (isMultiFileMode && !isPro && multiFiles.length > FREE_TIER_LIMITS.maxBatchFiles) {
         throw new Error(
-          `Free tier supports converting up to 10 files at once. You selected ${multiFiles.length} files. Upgrade to Pro or Quick Pass for unlimited batch conversion.`
+          `Free tier supports converting up to ${FREE_TIER_LIMITS.maxBatchFiles} files at once. You selected ${multiFiles.length} files. Upgrade to Quick Pass (₹49) or Pro for unlimited batch conversion.`
         );
       }
 

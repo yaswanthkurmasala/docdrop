@@ -174,7 +174,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>File limits:</strong> Up to 15 MB / 15 pages</span>
+                <span><strong>File limits:</strong> Up to 50 MB / 50 pages</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
