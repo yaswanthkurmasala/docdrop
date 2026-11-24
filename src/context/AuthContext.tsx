@@ -177,7 +177,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (err?.code === "auth/popup-closed-by-user") {
         throw new Error("Sign-in popup was closed before completing.");
       } else if (err?.code === "auth/unauthorized-domain") {
-        throw new Error("Domain localhost is now authorized. Please refresh and try again.");
+        const domain = typeof window !== "undefined" ? window.location.hostname : "this domain";
+        throw new Error(`Domain ${domain} authorization is updating. Please refresh in a few seconds.`);
       } else if (err?.code === "auth/operation-not-allowed") {
         throw new Error(
           provider === "github"
