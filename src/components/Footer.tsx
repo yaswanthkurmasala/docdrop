@@ -134,7 +134,7 @@ export function Footer() {
                   href="#pricing"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Affordable Passes ($1.99)</span>
+                  <span>Affordable Passes</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
               </li>
@@ -147,16 +147,31 @@ export function Footer() {
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
               </li>
+              <li>
+                <a
+                  href="/contact"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
+                >
+                  <span>Contact & Support</span>
+                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar: Copyright & Engine Status */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400">
-          <div className="flex items-center gap-2 font-medium">
-            <span>Built with precision for privacy & speed</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium">
+            <span>© 2026 DocDrop Studio</span>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <span>© 2026 DocDrop Studio. All rights reserved.</span>
+            <a href="/privacy" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Privacy Policy</a>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <a href="/terms" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Terms & Conditions</a>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <a href="/refund" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Refund Policy</a>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <a href="/contact" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Contact Us</a>
           </div>
 
           <div className="flex items-center gap-3 text-xs">
