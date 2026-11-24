@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Check, Sparkles, Zap, Globe2, Crown, ShieldCheck, X } from "lucide-react";
+import { Check, Sparkles, Zap, Crown, ShieldCheck, X } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 
 interface PricingProps {
@@ -36,7 +36,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         </h2>
 
         <p className="mt-2 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-lg mx-auto">
-          No $20/month gouging. Pick an instant 48-hour pass for one-off tasks, or subscribe for the price of a cup of coffee.
+          No expensive ₹1,500/month subscriptions. Pick a ₹49 48-hour pass for one-off tasks, or subscribe for ₹99/mo.
         </p>
 
         {/* Currency & Billing Switchers Container */}
@@ -103,7 +103,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
                   className="absolute inset-0 bg-zinc-950 dark:bg-white rounded-lg shadow-xs z-0"
                 />
               )}
-              <span className="relative z-10">Monthly {isINR ? "(₹199)" : "($2.99)"}</span>
+              <span className="relative z-10">Monthly Pro {isINR ? "(₹99)" : "($1.99)"}</span>
             </button>
 
             <button
@@ -129,7 +129,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
                     : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
                 }`}
               >
-                {isINR ? "₹83/mo" : "$1.58/mo"}
+                {isINR ? "₹42/mo" : "$0.83/mo"}
               </span>
             </button>
           </div>
@@ -226,11 +226,11 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
 
             <div className="flex items-baseline gap-1.5 mt-1">
               <span className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
-                {isINR ? "₹99" : "$1.99"}
+                {isINR ? "₹49" : "$0.99"}
               </span>
               <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">/ 48 hours</span>
               <span className="text-[11px] text-zinc-400 font-mono ml-auto">
-                {isINR ? "($1.99)" : "(₹99)"}
+                {isINR ? "($0.99)" : "(₹49)"}
               </span>
             </div>
 
@@ -273,13 +273,13 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
             whileHover={{ scale: 1.02, y: -0.5 }}
             whileTap={{ scale: 0.96 }}
             className="w-full h-9 flex items-center justify-center rounded-lg bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white text-xs font-semibold transition-all cursor-pointer shadow-xs"
-            onClick={() => onSelectPlan("Quick Pass (48h)", isINR ? "₹99" : "$1.99")}
+            onClick={() => onSelectPlan("Quick Pass (48h)", isINR ? "₹49" : "$0.99")}
           >
-            Get Quick Pass ({isINR ? "₹99" : "$1.99"})
+            Get Quick Pass ({isINR ? "₹49" : "$0.99"})
           </motion.button>
         </motion.div>
 
-        {/* Tier 3: Pro Coffee Plan (Most Popular) */}
+        {/* Tier 3: Monthly Pro / Annual Pass (Most Popular) */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
           className="flex flex-col p-4 sm:p-5 rounded-2xl border-2 border-amber-500/60 dark:border-amber-400/50 bg-white dark:bg-zinc-900 shadow-md relative ring-1 ring-amber-500/20 justify-between"
@@ -287,7 +287,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 font-mono">
-                Pro Coffee
+                {billingCycle === "monthly" ? "Monthly Pro" : "Annual Pass"}
               </span>
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25">
                 <Sparkles className="w-2.5 h-2.5 text-amber-500" />
@@ -299,24 +299,24 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               <span className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
                 {isINR
                   ? billingCycle === "monthly"
-                    ? "₹199"
-                    : "₹999"
+                    ? "₹99"
+                    : "₹499"
                   : billingCycle === "monthly"
-                  ? "$2.99"
-                  : "$19"}
+                  ? "$1.99"
+                  : "$9.99"}
               </span>
               <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                 {billingCycle === "monthly" ? "/ month" : "/ year"}
               </span>
               {billingCycle === "yearly" && (
                 <span className="text-[11px] text-zinc-400 line-through font-medium ml-1">
-                  {isINR ? "₹2,388" : "$35.88"}
+                  {isINR ? "₹1,188" : "$23.88"}
                 </span>
               )}
             </div>
 
             <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Continuous unlimited conversions for less than a cup of coffee.
+              Continuous unlimited conversions &amp; AI features for power users.
             </p>
 
             <div className="my-3.5 h-px bg-zinc-100 dark:bg-zinc-800" />
@@ -325,7 +325,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
             <ul className="space-y-2 text-[11px] text-zinc-700 dark:text-zinc-300 mb-4">
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Access:</strong> Unlimited conversions forever</span>
+                <span><strong>Access:</strong> Unlimited conversions &amp; exports</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -337,7 +337,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>AI & OCR:</strong> Advanced OCR audit & token counters</span>
+                <span><strong>AI &amp; OCR:</strong> Gemini AI summarize, translate &amp; OCR</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -345,7 +345,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Support:</strong> Priority support & all new tools included</span>
+                <span><strong>Savings:</strong> Save 58% with the ₹499 Annual Pass</span>
               </li>
             </ul>
           </div>
@@ -357,27 +357,30 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
             onClick={() => {
               const price = isINR
                 ? billingCycle === "monthly"
-                  ? "₹199"
-                  : "₹999"
+                  ? "₹99"
+                  : "₹499"
                 : billingCycle === "monthly"
-                ? "$2.99"
-                : "$19.00";
-              onSelectPlan(`Pro Plan (${billingCycle})`, price);
+                ? "$1.99"
+                : "$9.99";
+              onSelectPlan(
+                billingCycle === "monthly" ? "Monthly Pro" : "Annual Pass",
+                price
+              );
             }}
           >
             {isPro
               ? "Current Plan"
               : isINR
               ? billingCycle === "monthly"
-                ? "Subscribe for ₹199"
-                : "Subscribe for ₹999"
+                ? "Get Monthly Pro (₹99)"
+                : "Get Annual Pass (₹499)"
               : billingCycle === "monthly"
-              ? "Subscribe for $2.99"
-              : "Subscribe for $19.00"}
+              ? "Subscribe for $1.99"
+              : "Subscribe for $9.99"}
           </motion.button>
         </motion.div>
 
-        {/* Tier 4: Early Lifetime Deal */}
+        {/* Tier 4: Lifetime Pass */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
           className="flex flex-col p-4 sm:p-5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-zinc-400 dark:hover:border-zinc-700 transition-all justify-between"
@@ -385,26 +388,26 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 font-mono">
-                Early Lifetime
+                Lifetime Pass
               </span>
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-purple-500/10 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25">
                 <Crown className="w-2.5 h-2.5 text-purple-500" />
-                <span>Value</span>
+                <span>Best Value</span>
               </span>
             </div>
 
             <div className="flex items-baseline gap-1 mt-1">
               <span className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-950 dark:text-white">
-                {isINR ? "₹1,499" : "$24"}
+                {isINR ? "₹999" : "$14.99"}
               </span>
               <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">/ once</span>
               <span className="text-[11px] text-zinc-400 font-mono ml-auto">
-                {isINR ? "($24)" : "(₹1,499)"}
+                {isINR ? "($14.99)" : "(₹999)"}
               </span>
             </div>
 
             <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-              Pay once, own all current & future Pro instruments forever.
+              Pay once, own all current &amp; future Pro instruments forever.
             </p>
 
             <div className="my-3.5 h-px bg-zinc-100 dark:bg-zinc-800" />
@@ -417,7 +420,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Roadmap:</strong> All future instruments & AI tools</span>
+                <span><strong>Roadmap:</strong> All future instruments &amp; AI tools</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -425,11 +428,11 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Developer:</strong> Local npm script & automation access</span>
+                <span><strong>Developer:</strong> Local npm script &amp; automation access</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Priority:</strong> Dedicated queue & feature voting</span>
+                <span><strong>Priority:</strong> Dedicated queue &amp; feature voting</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
@@ -442,9 +445,9 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
             whileHover={{ scale: 1.02, y: -0.5 }}
             whileTap={{ scale: 0.96 }}
             className="w-full h-9 flex items-center justify-center rounded-lg bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white text-xs font-semibold transition-all cursor-pointer shadow-xs border border-zinc-700/80"
-            onClick={() => onSelectPlan("Early-Bird Lifetime", isINR ? "₹1,499" : "$24.00")}
+            onClick={() => onSelectPlan("Lifetime Pass", isINR ? "₹999" : "$14.99")}
           >
-            Get Lifetime ({isINR ? "₹1,499" : "$24"})
+            Get Lifetime Pass ({isINR ? "₹999" : "$14.99"})
           </motion.button>
         </motion.div>
       </div>

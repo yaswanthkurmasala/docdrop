@@ -76,13 +76,13 @@ export function DocDropStudio({
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
     } else {
-      setSelectedPlan({ name: "Pro Pass", price: "₹99" });
+      setSelectedPlan({ name: "Quick Pass (48h)", price: "₹49" });
       setIsCheckoutOpen(true);
     }
   };
 
   const handleOpenLicenseModal = () => {
-    setSelectedPlan({ name: "License Activation", price: "₹99" });
+    setSelectedPlan({ name: "License Activation", price: "₹49" });
     setIsCheckoutOpen(true);
   };
 

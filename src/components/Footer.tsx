@@ -144,7 +144,7 @@ export function Footer() {
                   href="#pricing"
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
                 >
-                  <span>Affordable Passes (from ₹99)</span>
+                  <span>Affordable Passes (from ₹49)</span>
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
               </li>

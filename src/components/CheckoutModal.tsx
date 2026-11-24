@@ -45,8 +45,8 @@ export function CheckoutModal({
     }
   }, [user, email]);
 
-  const planName = selectedPlan?.name || "Pro Pass";
-  const planPrice = selectedPlan?.price || "₹99";
+  const planName = selectedPlan?.name || "Quick Pass (48h)";
+  const planPrice = selectedPlan?.price || "₹49";
   const { amount: inrAmount, display: inrDisplay } = resolvePlanAmountInr(planName, planPrice);
 
   const handleCashfreePayment = async (e: React.FormEvent) => {

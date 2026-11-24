@@ -522,7 +522,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             className="group relative inline-flex items-center justify-center gap-2 h-9 px-3.5 sm:px-4 rounded-lg bg-white dark:bg-zinc-900/90 hover:bg-amber-50/40 dark:hover:bg-zinc-850 border border-zinc-200/90 dark:border-zinc-800 hover:border-amber-500/40 dark:hover:border-amber-400/40 text-zinc-800 dark:text-zinc-200 text-xs font-semibold tracking-tight shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.25)] active:brightness-95 dark:active:brightness-105 transition-all cursor-pointer select-none font-sans"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 group-hover:rotate-12 transition-transform duration-200 shrink-0" />
-            <span>Affordable Passes (from ₹99)</span>
+            <span>Affordable Passes (from ₹49)</span>
           </motion.button>
         </motion.div>
 

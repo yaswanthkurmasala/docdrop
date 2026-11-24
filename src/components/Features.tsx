@@ -149,7 +149,7 @@ export function Features() {
               </li>
               <li className="flex items-start gap-2.5">
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold text-sm leading-none mt-0.5">✓</span>
-                <span><strong>Affordable for everyone:</strong> Free tier, ₹99 ($1.99) Quick Pass, or ₹199 ($2.99)/mo.</span>
+                <span><strong>Affordable for everyone:</strong> Free tier, ₹49 Quick Pass, or ₹99/mo.</span>
               </li>
             </ul>
           </div>

@@ -21,36 +21,36 @@ export const PRICING_PLANS: Record<string, PlanDefinition> = {
   quick_pass: {
     id: "quick_pass",
     name: "Quick Pass (48h)",
-    usdPrice: "$1.99",
-    inrAmount: 99,
-    inrDisplay: "₹99",
+    usdPrice: "$0.99",
+    inrAmount: 49,
+    inrDisplay: "₹49",
     billingPeriod: "48 hours",
     tagline: "Got a single paper, tax filing, or thesis? No recurring subscription.",
   },
   pro_monthly: {
     id: "pro_monthly",
-    name: "Pro Coffee (Monthly)",
-    usdPrice: "$2.99",
-    inrAmount: 199,
-    inrDisplay: "₹199",
+    name: "Monthly Pro",
+    usdPrice: "$1.99",
+    inrAmount: 99,
+    inrDisplay: "₹99",
     billingPeriod: "month",
     tagline: "Continuous unlimited conversions for less than a cup of coffee.",
   },
   pro_yearly: {
     id: "pro_yearly",
-    name: "Pro Coffee (Annual)",
-    usdPrice: "$19.00",
-    inrAmount: 999,
-    inrDisplay: "₹999",
+    name: "Annual Pass",
+    usdPrice: "$9.99",
+    inrAmount: 499,
+    inrDisplay: "₹499",
     billingPeriod: "year",
-    tagline: "Full year of unlimited Pro instruments. Save over 58%.",
+    tagline: "Full year of unlimited Pro instruments. Save 58%.",
   },
   lifetime: {
     id: "lifetime",
-    name: "Early-Bird Lifetime",
-    usdPrice: "$24.00",
-    inrAmount: 1499,
-    inrDisplay: "₹1,499",
+    name: "Lifetime Pass",
+    usdPrice: "$14.99",
+    inrAmount: 999,
+    inrDisplay: "₹999",
     billingPeriod: "once",
     tagline: "Pay once, own all current & future Pro instruments forever.",
   },
@@ -58,21 +58,21 @@ export const PRICING_PLANS: Record<string, PlanDefinition> = {
 
 export function resolvePlanAmountInr(planName: string, planPrice: string): { amount: number; display: string } {
   const name = (planName || "").toLowerCase();
-  const price = (planPrice || "").toLowerCase();
+  const price = (planPrice || "").toLowerCase().replace(/,/g, "").trim();
 
-  if (name.includes("lifetime") || price.includes("24") || price.includes("1499")) {
-    return { amount: 1499, display: "₹1,499" };
-  }
-  if (name.includes("year") || name.includes("annual") || price.includes("19") || price.includes("999")) {
+  // Check highest / exact tiers first so "499" never falsely matches "49" and "999" never falsely matches "99"
+  if (name.includes("lifetime") || price.includes("999") || price.includes("14.99") || price === "$15") {
     return { amount: 999, display: "₹999" };
   }
-  if (name.includes("month") || price.includes("2.99") || price.includes("199")) {
-    return { amount: 199, display: "₹199" };
+  if (name.includes("year") || name.includes("annual") || price.includes("499") || price.includes("9.99")) {
+    return { amount: 499, display: "₹499" };
   }
-  if (name.includes("quick") || name.includes("48") || price.includes("1.99") || price.includes("99")) {
+  if (name.includes("month") || price.includes("1.99") || price === "₹99" || price === "99") {
     return { amount: 99, display: "₹99" };
   }
+  if (name.includes("quick") || name.includes("48") || price.includes("0.99") || price.includes("49")) {
+    return { amount: 49, display: "₹49" };
+  }
 
-  // Fallback default
-  return { amount: 99, display: "₹99" };
+  return { amount: 49, display: "₹49" };
 }
