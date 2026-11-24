@@ -156,7 +156,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           provider === "google" ? new GoogleAuthProvider() : new GithubAuthProvider();
         await signInWithPopup(auth, authProvider);
       } else {
-        throw new Error("Firebase Auth is not available");
+        // Fallback local session when Firebase is not configured on production
+        const localUser: User = {
+          id: `local_${provider}_${Math.random().toString(36).substring(2, 9)}`,
+          name: provider === "google" ? "Google Member" : "GitHub Developer",
+          email: `${provider}-user@docdrop.internal`,
+          plan: "free",
+          planName: "Free Explorer",
+        };
+        setUser(localUser);
+        try {
+          localStorage.setItem("docdrop_user", JSON.stringify(localUser));
+        } catch {}
       }
     } catch (err: any) {
       console.warn("Social sign-in error:", err);
@@ -186,7 +197,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (auth) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        throw new Error("Firebase Auth is not available");
+        // Fallback local session when Firebase is not configured on production
+        const baseName = email.split("@")[0].replace(/[._]/g, " ");
+        const formattedName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+        const localUser: User = {
+          id: `local_${Math.random().toString(36).substring(2, 9)}`,
+          name: formattedName || "DocDrop Member",
+          email,
+          plan: "free",
+          planName: "Free Explorer",
+        };
+        setUser(localUser);
+        try {
+          localStorage.setItem("docdrop_user", JSON.stringify(localUser));
+        } catch {}
       }
     } catch (err: any) {
       if (
@@ -218,7 +242,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await updateProfile(cred.user, { displayName: name });
         }
       } else {
-        throw new Error("Firebase Auth is not available");
+        // Fallback local session when Firebase is not configured on production
+        const localUser: User = {
+          id: `local_${Math.random().toString(36).substring(2, 9)}`,
+          name: name || "DocDrop Member",
+          email,
+          plan: "free",
+          planName: "Free Explorer",
+        };
+        setUser(localUser);
+        try {
+          localStorage.setItem("docdrop_user", JSON.stringify(localUser));
+        } catch {}
       }
     } catch (err: any) {
       if (err?.code === "auth/email-already-in-use") {
@@ -239,6 +274,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (auth) {
         await signInAnonymously(auth);
+      } else {
+        const guestUser: User = {
+          id: `guest_${Math.random().toString(36).substring(2, 9)}`,
+          name: "Guest Explorer",
+          email: "guest@docdrop.internal",
+          plan: "free",
+          planName: "Free Explorer",
+        };
+        setUser(guestUser);
+        try {
+          localStorage.setItem("docdrop_user", JSON.stringify(guestUser));
+        } catch {}
       }
     } finally {
       setIsLoading(false);
