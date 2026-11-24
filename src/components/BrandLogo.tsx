@@ -51,7 +51,7 @@ export function BrandLogo({
         <div className="flex flex-col text-left justify-center leading-none">
           <span className="text-base sm:text-[17px] font-sans-display tracking-tight text-zinc-950 dark:text-white font-extrabold flex items-baseline">
             <span>Doc</span>
-            <span className="text-blue-600 dark:text-blue-400">Drop</span>
+            <span className="text-orange-600 dark:text-orange-400">Drop</span>
           </span>
           {showSubtitle && (
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium tracking-tight mt-0.5">
