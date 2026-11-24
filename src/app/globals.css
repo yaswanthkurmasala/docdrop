@@ -1,26 +1,299 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Syne:wght@700;800;900&family=Space+Grotesk:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400;1,600;1,700&family=Caveat:wght@600;700&display=swap');
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================================
+   OFFICIAL RYANOASIS NERD FONTS (Direct from github.com/ryanoasis/nerd-fonts)
+   ========================================================================= */
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  src: url('/fonts/JetBrainsMonoNerdFont-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-@theme inline {
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  src: url('/fonts/JetBrainsMonoNerdFont-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FiraCode Nerd Font';
+  src: url('/fonts/FiraCodeNerdFont-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-nerd: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Curated Aesthetic Font Pairings */
+.font-editorial {
+  font-family: "Instrument Serif", "Playfair Display", Georgia, serif;
+  font-feature-settings: "liga" 1, "kern" 1;
+}
+
+.font-sans-display {
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.025em;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.font-serif-luxury {
+  font-family: "Playfair Display", Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.font-syne {
+  font-family: "Syne", "Plus Jakarta Sans", sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.font-space-grotesk {
+  font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-cormorant {
+  font-family: "Cormorant Garamond", Georgia, serif;
+}
+
+.font-script {
+  font-family: "Caveat", cursive, sans-serif;
+}
+
+.font-tech-mono {
+  font-family: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-feature-settings: "zero" 1, "calt" 1, "liga" 1;
+  font-variant-ligatures: contextual;
+}
+
+.font-nerd {
+  font-family: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", monospace;
+  font-feature-settings: "zero" 1, "calt" 1, "liga" 1;
+  font-variant-ligatures: contextual;
+}
+
+.font-fira-nerd {
+  font-family: "FiraCode Nerd Font", "JetBrainsMono Nerd Font", monospace;
+  font-feature-settings: "calt" 1, "liga" 1;
+  font-variant-ligatures: contextual;
+}
+
+/* Fluid Shimmer & Aurora Keyframe Animations */
+@keyframes textShimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-text-shimmer {
+  background-size: 250% auto;
+  animation: textShimmer 6s ease-in-out infinite;
+}
+
+@keyframes auroraPulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1) translate(0px, 0px);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.06) translate(6px, -4px);
+  }
+}
+
+.animate-aurora {
+  animation: auroraPulse 8s ease-in-out infinite;
+}
+
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 4s ease-in-out infinite;
+}
+
+@keyframes subtleGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 24px rgba(245, 158, 11, 0.45));
+  }
+}
+
+.animate-subtle-glow {
+  animation: subtleGlow 5s ease-in-out infinite;
+}
+
+:root,
+:root[data-theme="light"],
+html:not(.dark) {
+  color-scheme: light;
+  /* Impeccable "Paper & Instruments" Color System (OKLCH) */
+  --paper: oklch(98.5% 0.002 90);
+  --paper-raised: oklch(100% 0 0);
+  --paper-muted: oklch(96% 0.003 90);
+  --paper-deep: oklch(93.5% 0.005 90);
+  --ink: oklch(14% 0.005 60);
+  --ink-secondary: oklch(38% 0.01 60);
+  --ink-muted: oklch(52% 0.01 60);
+  --ink-subtle: oklch(65% 0.008 60);
+  
+  /* Jewelry & Instrument Accents - strictly used as indicators, rules, and small badges */
+  --kinpaku: oklch(78% 0.17 68);
+  --kinpaku-vivid: oklch(73% 0.19 64);
+  --kinpaku-subtle: oklch(96% 0.04 68);
+  --patina: oklch(62% 0.12 188);
+  --vermilion: oklch(54% 0.18 32);
+
+  --background: var(--paper);
+  --surface: var(--paper-raised);
+  --surface-raised: var(--paper-raised);
+  --surface-muted: var(--paper-muted);
+  --foreground: var(--ink);
+  --text-secondary: var(--ink-secondary);
+  --text-muted: var(--ink-muted);
+  --border: oklch(90% 0.004 90);
+  --border-subtle: oklch(94% 0.003 90);
+  --border-strong: oklch(78% 0.008 90);
+  --accent: var(--ink);
+  --accent-strong: oklch(0% 0 0);
+  --accent-subtle: oklch(14% 0.005 60 / 0.06);
+  --font-system-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-system-mono: "JetBrainsMono Nerd Font", "FiraCode Nerd Font", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+:root[data-theme="dark"],
+html.dark,
+.dark {
+  color-scheme: dark;
+  --paper: oklch(16% 0.004 60);
+  --paper-raised: oklch(20% 0.005 60);
+  --paper-muted: oklch(23% 0.006 60);
+  --paper-deep: oklch(13% 0.003 60);
+  --ink: oklch(96% 0.003 90);
+  --ink-secondary: oklch(78% 0.005 90);
+  --ink-muted: oklch(66% 0.006 90);
+  --ink-subtle: oklch(50% 0.006 90);
+
+  --kinpaku: oklch(82% 0.17 68);
+  --kinpaku-vivid: oklch(78% 0.19 64);
+  --kinpaku-subtle: oklch(26% 0.05 68);
+  --patina: oklch(72% 0.13 188);
+  --vermilion: oklch(64% 0.18 32);
+
+  --background: var(--paper);
+  --surface: var(--paper-raised);
+  --surface-raised: var(--paper-raised);
+  --surface-muted: var(--paper-muted);
+  --foreground: var(--ink);
+  --text-secondary: var(--ink-secondary);
+  --text-muted: var(--ink-muted);
+  --border: oklch(27% 0.005 60);
+  --border-subtle: oklch(22% 0.004 60);
+  --border-strong: oklch(38% 0.008 60);
+  --accent: var(--ink);
+  --accent-strong: oklch(100% 0 0);
+  --accent-subtle: oklch(96% 0.003 90 / 0.08);
+}
+
+
+
+/* Typographic Craft Floor */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+  letter-spacing: -0.02em;
+}
+
+p, li, blockquote {
+  text-wrap: pretty;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+body {
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-system-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body, header, nav, footer {
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hairline Instrument Rules */
+.hairline-b {
+  border-bottom: 1px solid var(--border);
+}
+
+.hairline-t {
+  border-top: 1px solid var(--border);
+}
+
+.hairline-r {
+  border-right: 1px solid var(--border);
+}
+
+/* Tactile Instruments Selection */
+::selection {
+  background: var(--kinpaku-subtle);
+  color: var(--foreground);
+}
+
+/* Custom smooth hairline scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

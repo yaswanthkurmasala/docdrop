@@ -1,0 +1,218 @@
+rules_version = '2';
+
+// ===============================================================
+// DocMark Cloud Firestore Security Rules
+// ===============================================================
+//
+// Assumed Data Model:
+//
+// 1. Collection: /users/{userId}
+//    Document ID: {userId} (Must match request.auth.uid)
+//    Fields:
+//      - uid: string (required, immutable) - Firebase Auth User UID
+//      - email: string | null (optional) - User's email address (max 254 chars)
+//      - displayName: string | null (optional) - User's display name (max 100 chars)
+//      - photoURL: string | null (optional) - User avatar image URL (max 2048 chars)
+//      - isPro: bool (required, protected) - Pro subscription status (must start false, non-self-promotable)
+//      - conversionsCount: number (required) - Count of completed conversions (>= 0)
+//      - totalTokensUsed: number (required) - Cumulative tokens consumed (>= 0)
+//      - createdAt: number | timestamp (required, immutable) - Creation timestamp (> 0)
+//      - lastActiveAt: number | timestamp (required) - Last activity timestamp (> 0)
+//
+// 2. Subcollection: /users/{userId}/history/{recordId}
+//    Document ID: Auto-generated recordId
+//    Fields:
+//      - toolId: string (required) - Identifier for the tool used (max 100 chars)
+//      - toolName: string (required) - Human-readable tool name (max 100 chars)
+//      - fileName: string (required) - Original input filename (max 255 chars)
+//      - outputFileName: string (required) - Processed output filename (max 255 chars)
+//      - timestamp: number (required) - Unix epoch timestamp (ms) (> 0)
+//      - status: string (required) - Status of conversion, either 'success' or 'failed'
+//      - fileSizeBytes: number (optional) - Input file size in bytes (>= 0, max 1GB)
+//      - meta: string (optional) - Additional tool metadata (max 5000 chars)
+//      - downloadUrl: string (optional) - Download URL for processed asset (max 2048 chars)
+//      - tokenCount: number (optional) - Tokens consumed for this conversion (>= 0, max 10M)
+//      - createdAt: timestamp | number (optional) - Server creation timestamp
+//
+// 3. Subcollection: /users/{userId}/documents/{docId}
+//    Document ID: Auto-generated or custom docId
+//    Fields:
+//      - title: string (required) - Document title (1..255 chars)
+//      - content: string (required) - Markdown or text document payload (max 1,000,000 chars)
+//      - format: string (required) - Content format, either 'markdown' or 'text'
+//      - createdAt: number | timestamp (required, immutable) - Document creation timestamp (> 0)
+//      - updatedAt: number | timestamp (required) - Document last update timestamp (> 0)
+//      - sourceFileName: string (optional) - Name of source file converted (max 255 chars)
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user is the resource owner
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.size() <= 254 &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+[.][a-zA-Z]{2,}$");
+    }
+
+    // Validate URL format (must start with https:// or http://)
+    function isValidUrl(url) {
+      return url is string &&
+        url.size() <= 2048 &&
+        (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // Validate that the document contains only the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate that required fields exist in the document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Validates /users/{userId} document schema and constraints
+    function isValidUserProfile(data) {
+      return hasOnlyAllowedFields([
+               'uid', 'email', 'displayName', 'photoURL', 'isPro',
+               'conversionsCount', 'totalTokensUsed', 'createdAt', 'lastActiveAt'
+             ]) &&
+             hasRequiredFields([
+               'uid', 'isPro', 'conversionsCount', 'totalTokensUsed', 'createdAt', 'lastActiveAt'
+             ]) &&
+             data.uid is string &&
+             data.uid.size() > 0 &&
+             data.uid.size() <= 128 &&
+             (!('email' in data) || data.email == null || isValidEmail(data.email)) &&
+             (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || data.photoURL == null || isValidUrl(data.photoURL)) &&
+             data.isPro is bool &&
+             data.conversionsCount is number &&
+             data.conversionsCount >= 0 &&
+             data.totalTokensUsed is number &&
+             data.totalTokensUsed >= 0 &&
+             ((data.createdAt is number && data.createdAt > 0) || data.createdAt is timestamp) &&
+             ((data.lastActiveAt is number && data.lastActiveAt > 0) || data.lastActiveAt is timestamp);
+    }
+
+    // Validates /users/{userId}/history/{recordId} document schema and constraints
+    function isValidConversionRecord(data) {
+      return hasOnlyAllowedFields([
+               'toolId', 'toolName', 'fileName', 'outputFileName',
+               'fileSizeBytes', 'timestamp', 'status', 'meta',
+               'downloadUrl', 'tokenCount', 'createdAt'
+             ]) &&
+             hasRequiredFields([
+               'toolId', 'toolName', 'fileName', 'outputFileName', 'timestamp', 'status'
+             ]) &&
+             data.toolId is string &&
+             data.toolId.size() > 0 &&
+             data.toolId.size() <= 100 &&
+             data.toolName is string &&
+             data.toolName.size() > 0 &&
+             data.toolName.size() <= 100 &&
+             data.fileName is string &&
+             data.fileName.size() > 0 &&
+             data.fileName.size() <= 255 &&
+             data.outputFileName is string &&
+             data.outputFileName.size() > 0 &&
+             data.outputFileName.size() <= 255 &&
+             data.timestamp is number &&
+             data.timestamp > 0 &&
+             data.status in ['success', 'failed'] &&
+             (!('fileSizeBytes' in data) || (data.fileSizeBytes is number && data.fileSizeBytes >= 0 && data.fileSizeBytes <= 1073741824)) &&
+             (!('meta' in data) || (data.meta is string && data.meta.size() <= 5000)) &&
+             (!('downloadUrl' in data) || (data.downloadUrl is string && data.downloadUrl.size() <= 2048)) &&
+             (!('tokenCount' in data) || (data.tokenCount is number && data.tokenCount >= 0 && data.tokenCount <= 10000000)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp || (data.createdAt is number && data.createdAt > 0));
+    }
+
+    // Validates /users/{userId}/documents/{docId} document schema and constraints
+    function isValidSavedDocument(data) {
+      return hasOnlyAllowedFields([
+               'title', 'content', 'format', 'createdAt', 'updatedAt', 'sourceFileName'
+             ]) &&
+             hasRequiredFields([
+               'title', 'content', 'format', 'createdAt', 'updatedAt'
+             ]) &&
+             data.title is string &&
+             data.title.size() > 0 &&
+             data.title.size() <= 255 &&
+             data.content is string &&
+             data.content.size() <= 1000000 &&
+             data.format in ['markdown', 'text'] &&
+             ((data.createdAt is number && data.createdAt > 0) || data.createdAt is timestamp) &&
+             ((data.updatedAt is number && data.updatedAt > 0) || data.updatedAt is timestamp) &&
+             (!('sourceFileName' in data) || (data.sourceFileName is string && data.sourceFileName.size() <= 255));
+    }
+
+    // ===============================================================
+    // Match Rules
+    // ===============================================================
+
+    // User profile documents
+    match /users/{userId} {
+      // Owner-only read access (protects PII like email from public or blanket-auth exposure)
+      allow read: if isOwner(userId);
+
+      // Create allowed only for user's own profile, enforcing isPro == false initially
+      allow create: if isOwner(userId) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.isPro == false &&
+        isValidUserProfile(request.resource.data);
+
+      // Update allowed only for owner; preserves isPro, uid, and createdAt
+      allow update: if isOwner(userId) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.isPro == resource.data.isPro &&
+        isValidUserProfile(request.resource.data);
+
+      // Prevent unauthorized profile deletion via client SDK
+      allow delete: if false;
+
+      // User conversion history items (audit log: append, read, and delete only)
+      match /history/{recordId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidConversionRecord(request.resource.data);
+        allow delete: if isOwner(userId);
+        allow update: if false;
+      }
+
+      // User saved workspace documents
+      match /documents/{docId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSavedDocument(request.resource.data);
+        allow update: if isOwner(userId) &&
+          request.resource.data.createdAt == resource.data.createdAt &&
+          isValidSavedDocument(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Default Deny Rule - deny all access to unspecified collections and documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

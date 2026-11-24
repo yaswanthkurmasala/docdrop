@@ -1,0 +1,13 @@
+/**
+ * Unified PDF & Document Tools Suite
+ * Re-exports all categorized features cleanly for backwards compatibility and high modularity
+ */
+export * from "./common/pdfjs-loader.ts";
+export * from "./organize/index.ts";
+export * from "./optimize/index.ts";
+export * from "./convert-to/index.ts";
+export * from "./convert-from/index.ts";
+export * from "./edit/index.ts";
+export * from "./security/index.ts";
+export * from "./intelligence/index.ts";
+export * from "./merge-pdf.ts";
