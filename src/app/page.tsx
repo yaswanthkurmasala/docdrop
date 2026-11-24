@@ -29,7 +29,7 @@ export default function Home() {
 
   const { user, setProStatus } = useAuth();
 
-  // Sync pro status from context or localStorage on mount
+  // Sync pro status from context or localStorage on mount & handle payment return
   useEffect(() => {
     try {
       const savedPro = localStorage.getItem("docdrop_pro_unlocked") || localStorage.getItem("doctomd_pro_unlocked");
@@ -38,6 +38,14 @@ export default function Home() {
       }
     } catch {
       // ignore
+    }
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("payment") === "success") {
+        handleUnlockPro();
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
   }, [user]);
 
