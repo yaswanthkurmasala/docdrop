@@ -33,13 +33,22 @@ export function AuthModal({
   initialTab = "login",
   onOpenLicenseModal,
 }: AuthModalProps) {
-  const [tab, setTab] = useState<"login" | "signup">(initialTab);
+  const [tabOverride, setTabOverride] = useState<"login" | "signup" | null>(null);
+  const tab = tabOverride ?? initialTab;
+  const setTab = (next: "login" | "signup") => setTabOverride(next);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleClose = () => {
+    setTabOverride(null);
+    setError(null);
+    setSuccessMsg(null);
+    onClose();
+  };
 
   const { loginWithSocial, loginWithEmail, signupWithEmail, loginAsGuest, isLoading } = useAuth();
 
@@ -52,7 +61,7 @@ export function AuthModal({
       } catch {
         // ignore
       }
-      onClose();
+      handleClose();
     } catch (err: any) {
       setError(err?.message || "Failed to sign in with provider.");
     }
@@ -84,8 +93,7 @@ export function AuthModal({
         // ignore
       }
       setTimeout(() => {
-        setSuccessMsg(null);
-        onClose();
+        handleClose();
       }, 700);
     } catch (err: any) {
       setError(err?.message || "Authentication failed. Please try again.");
@@ -102,7 +110,7 @@ export function AuthModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: motionTokens.duration.fast }}
-            onClick={onClose}
+            onClick={handleClose}
             className="fixed inset-0 bg-black/50 backdrop-blur-xs"
           />
 
@@ -116,7 +124,7 @@ export function AuthModal({
           >
             {/* Close Button */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="absolute top-5 right-5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -138,7 +146,7 @@ export function AuthModal({
             </div>
 
             {/* Tab Switcher (Log In vs Sign Up) */}
-            <div className="flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700/80 mb-5 relative">
+            <div className="relative isolate flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700/80 mb-5">
               <button
                 type="button"
                 onClick={() => {
@@ -235,7 +243,7 @@ export function AuthModal({
                 onClick={async () => {
                   try {
                     await loginAsGuest();
-                    onClose();
+                    handleClose();
                   } catch (err: any) {
                     setError(err?.message || "Guest session initialization failed.");
                   }
@@ -312,16 +320,20 @@ export function AuthModal({
                         ⚡ Fill Demo
                       </button>
                       <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                      <a
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setError("Password reset email link sent to your inbox.");
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError(null);
+                          if (!email.trim() || !email.includes("@")) {
+                            setError("Enter your email address above first, then click Forgot password.");
+                            return;
+                          }
+                          setSuccessMsg(`If an account exists for ${email.trim()}, check your inbox or use Continue with Google.`);
                         }}
-                        className="text-[11px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                        className="text-[11px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
                       >
                         Forgot password?
-                      </a>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -411,7 +423,7 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    onClose();
+                    handleClose();
                     onOpenLicenseModal();
                   }}
                   className="inline-flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white font-medium transition-colors cursor-pointer"

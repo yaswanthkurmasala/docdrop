@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { ConverterWorkspace } from "@/components/ConverterWorkspace";
@@ -39,20 +39,50 @@ export function DocDropStudio({
 
   const { user, setProStatus } = useAuth();
 
-  // Sync pro status from context or localStorage on mount & handle payment return
+  const handleUnlockPro = useCallback(() => {
+    setIsPro(true);
+    setProStatus(true);
+    try {
+      localStorage.setItem("docdrop_pro_unlocked", "true");
+    } catch {
+      // ignore
+    }
+  }, [setProStatus]);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    if (typeof window === "undefined") return;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }, []);
+
+  // Sync pro status on mount, verify Cashfree redirect payment, and honor deep-link URL hashes
   useEffect(() => {
+    let unlockedLocal = false;
     try {
       const savedPro =
         localStorage.getItem("docdrop_pro_unlocked") ||
         localStorage.getItem("doctomd_pro_unlocked");
       if (savedPro === "true" || user?.plan === "pro") {
-        setIsPro(true);
+        unlockedLocal = true;
       }
     } catch {
       // ignore
     }
 
+    if (unlockedLocal) {
+      queueMicrotask(() => setIsPro(true));
+    }
+
     if (typeof window !== "undefined") {
+      if (window.location.hash) {
+        const targetId = window.location.hash.replace(/^#/, "");
+        setTimeout(() => scrollToSection(targetId), 120);
+      }
+
       const params = new URLSearchParams(window.location.search);
       const orderId = params.get("order_id");
       const shouldVerify = params.get("verify_payment") === "1";
@@ -75,22 +105,12 @@ export function DocDropStudio({
           });
       }
     }
-  }, [user]);
-
-  const handleUnlockPro = () => {
-    setIsPro(true);
-    setProStatus(true);
-    try {
-      localStorage.setItem("docdrop_pro_unlocked", "true");
-    } catch {
-      // ignore
-    }
-  };
+  }, [user, handleUnlockPro, scrollToSection]);
 
   const handleOpenPricing = () => {
     const el = document.getElementById("pricing");
     if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
+      scrollToSection("pricing");
     } else {
       setSelectedPlan({ name: "Quick Pass (48h)", price: "₹49" });
       setIsCheckoutOpen(true);
@@ -114,8 +134,7 @@ export function DocDropStudio({
 
   const handleSelectTool = (toolId: string) => {
     setActiveToolId(toolId);
-    const el = document.getElementById("active-tool-workspace");
-    el?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => scrollToSection("active-tool-workspace"), 50);
   };
 
   const isPresetDock = [
@@ -312,7 +331,7 @@ export function DocDropStudio({
       </main>
 
       {/* Footer */}
-      <Footer />
+      <Footer onOpenPricing={handleOpenPricing} />
 
       {/* Checkout / License Key Modal */}
       <CheckoutModal

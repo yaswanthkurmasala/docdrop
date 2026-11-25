@@ -413,7 +413,10 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
                     <input
                       type="file"
                       ref={fileInputRef}
-                      onChange={(e) => e.target.files && addFiles(e.target.files)}
+                      onChange={(e) => {
+                        if (e.target.files) addFiles(e.target.files);
+                        e.target.value = "";
+                      }}
                       accept=".pdf"
                       multiple
                       className="hidden"
@@ -589,7 +592,7 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
                         <span>Continuous Page Numbering</span>
                       </label>
                       <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-5">
-                        Stamps uniform "Page X of Y" across all combined documents.
+                        Stamps uniform &ldquo;Page X of Y&rdquo; across all combined documents.
                       </p>
                       {addPageNumbers && (
                         <div className="flex gap-2 pl-5 pt-1">
@@ -661,9 +664,18 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
                 className="p-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 text-xs flex items-start gap-3 shadow-xs"
               >
                 <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
-                <div className="flex-1">
+                <div className="flex-1 space-y-1.5">
                   <p className="font-bold">Notice</p>
                   <p>{error}</p>
+                  {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("upgrade") || error.toLowerCase().includes("free tier")) && (
+                    <button
+                      type="button"
+                      onClick={onOpenPricing}
+                      className="font-bold text-rose-900 dark:text-rose-200 underline hover:no-underline cursor-pointer"
+                    >
+                      View affordable Pro plans (from ₹49) &rarr;
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}

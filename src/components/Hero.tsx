@@ -564,7 +564,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
               Tooling
             </span>
             <span className="text-xs sm:text-sm font-tech-mono font-bold text-zinc-950 dark:text-white mt-1 block tnum">
-              20+ Instruments
+              33+ Instruments
             </span>
           </div>
         </motion.div>

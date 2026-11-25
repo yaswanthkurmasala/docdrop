@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShieldCheck, Cpu, ArrowUpRight, FileText, FileSpreadsheet, Sparkles } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 
-export function Footer() {
+export function Footer({ onOpenPricing }: { onOpenPricing?: () => void }) {
   return (
     <footer className="relative mt-auto border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 py-14 sm:py-16 px-4 sm:px-6 lg:px-8 select-none">
       {/* Ambient Top Subtle Hairline Glow */}
@@ -140,13 +140,24 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <a
-                  href="#pricing"
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
-                >
-                  <span>Affordable Passes (from ₹49)</span>
-                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
+                {onOpenPricing ? (
+                  <button
+                    type="button"
+                    onClick={onOpenPricing}
+                    className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group cursor-pointer"
+                  >
+                    <span>Affordable Passes (from ₹49)</span>
+                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ) : (
+                  <Link
+                    href="/#pricing"
+                    className="hover:text-zinc-950 dark:hover:text-white transition-colors flex items-center gap-1 group"
+                  >
+                    <span>Affordable Passes (from ₹49)</span>
+                    <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                )}
               </li>
               <li>
                 <Link
@@ -175,13 +186,13 @@ export function Footer() {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-medium">
             <span>© 2026 DocDrop Studio</span>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <a href="/privacy" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Privacy Policy</a>
+            <Link href="/privacy" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Privacy Policy</Link>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <a href="/terms" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Terms & Conditions</a>
+            <Link href="/terms" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Terms &amp; Conditions</Link>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <a href="/refund" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Refund Policy</a>
+            <Link href="/refund" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Refund Policy</Link>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
-            <a href="/contact" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Contact Us</a>
+            <Link href="/contact" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Contact Us</Link>
           </div>
 
           <div className="flex items-center gap-3 text-xs">

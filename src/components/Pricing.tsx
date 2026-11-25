@@ -256,7 +256,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <span><strong>Full suite:</strong> All 20+ instruments + RAG chunker</span>
+                <span><strong>Full suite:</strong> All 33 instruments + RAG chunker</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -345,16 +345,22 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                <span><strong>Savings:</strong> Save 58% with the ₹499 Annual Pass</span>
+                <span><strong>Savings:</strong> Save 58% with the {isINR ? "₹499" : "$9.99"} Annual Pass</span>
               </li>
             </ul>
           </div>
 
           <motion.button
-            whileHover={{ scale: 1.02, y: -0.5 }}
-            whileTap={{ scale: 0.96 }}
-            className="w-full h-9 flex items-center justify-center rounded-lg bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 text-white dark:text-zinc-950 text-xs font-semibold transition-all cursor-pointer shadow-xs"
+            whileHover={isPro ? undefined : { scale: 1.02, y: -0.5 }}
+            whileTap={isPro ? undefined : { scale: 0.96 }}
+            disabled={isPro}
+            className={`w-full h-9 flex items-center justify-center rounded-lg text-xs font-semibold transition-all shadow-xs ${
+              isPro
+                ? "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 cursor-default"
+                : "bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 text-white dark:text-zinc-950 cursor-pointer"
+            }`}
             onClick={() => {
+              if (isPro) return;
               const price = isINR
                 ? billingCycle === "monthly"
                   ? "₹99"
@@ -369,7 +375,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
             }}
           >
             {isPro
-              ? "Current Plan"
+              ? "Pro Plan Active ✓"
               : isINR
               ? billingCycle === "monthly"
                 ? "Get Monthly Pro (₹99)"

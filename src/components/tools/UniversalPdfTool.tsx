@@ -2100,7 +2100,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 {isCompareMode && file && !compareSecondFile && (
                   <div
                     onClick={() => compareInputRef.current?.click()}
-                    className="p-8 rounded-2xl border-2 border-dashed border-sky-400 dark:border-sky-700 bg-sky-50/40 dark:bg-sky-950/30 text-center cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/50 transition-colors"
+                    className="p-8 rounded-2xl border-2 border-dashed border-sky-400 dark:border-sky-700 bg-sky-50/40 dark:bg-sky-950/30 text-center cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/50 transition-colors space-y-2"
                   >
                     <input
                       type="file"
@@ -2112,9 +2112,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       accept=".pdf"
                       className="hidden"
                     />
-                    <GitCompare className="w-8 h-8 text-sky-600 dark:text-sky-400 mx-auto mb-2" />
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Document 1 Loaded: {file.name}</span>
+                    </div>
+                    <GitCompare className="w-8 h-8 text-sky-600 dark:text-sky-400 mx-auto" />
                     <p className="text-sm font-bold text-sky-950 dark:text-white">Select Document 2 for Comparison</p>
-                    <p className="text-xs text-sky-700 dark:text-sky-300 mt-1">Click to browse or drop second PDF here</p>
+                    <p className="text-xs text-sky-700 dark:text-sky-300">Click to browse or drop second PDF here</p>
                   </div>
                 )}
               </div>
@@ -6162,9 +6166,20 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
                 {/* Error Banner */}
                 {error && (
-                  <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{error}</span>
+                  <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs flex items-start gap-2.5 text-left">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div className="flex-1 space-y-1.5">
+                      <p>{error}</p>
+                      {(error.toLowerCase().includes("limit") || error.toLowerCase().includes("upgrade")) && (
+                        <button
+                          type="button"
+                          onClick={onOpenPricing}
+                          className="font-bold text-rose-900 dark:text-rose-200 underline hover:no-underline cursor-pointer"
+                        >
+                          View affordable Pro plans (from ₹49) &rarr;
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 

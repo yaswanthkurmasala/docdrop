@@ -193,7 +193,7 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
             Full In-Browser Suite
           </span>
           <h2 className="mt-3 text-2xl sm:text-3xl font-black text-zinc-950 dark:text-white tracking-tight">
-            Explore All 20+ PDF & Document Tools
+            Explore All {TOOLS_REGISTRY.length} PDF &amp; Document Tools
           </h2>
           <p className="mt-1.5 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
             100% free, private in-browser execution with zero cloud storage.
@@ -274,8 +274,6 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
                 if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
                   e.preventDefault();
                   onSelectTool(tool.id);
-                  const el = document.getElementById("active-tool-workspace");
-                  el?.scrollIntoView({ behavior: "smooth" });
                 }
               }}
               className="block h-full"

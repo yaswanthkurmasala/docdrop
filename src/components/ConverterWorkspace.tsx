@@ -129,6 +129,7 @@ export function ConverterWorkspace({ isPro, onOpenPricing }: ConverterWorkspaceP
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFile(e.target.files[0]);
+      e.target.value = "";
     }
   };
 

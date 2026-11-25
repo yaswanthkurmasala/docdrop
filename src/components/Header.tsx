@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ShieldCheck,
@@ -252,8 +253,6 @@ export function Header({
     setIsConvertDropdownOpen(false);
     setIsMobileMenuOpen(false);
     onSelectTool(id);
-    const el = document.getElementById("active-tool-workspace");
-    el?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -271,9 +270,20 @@ export function Header({
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
           {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <a href="#" className="flex items-center">
+            <Link
+              href="/"
+              onClick={() => {
+                setIsMegaMenuOpen(false);
+                setIsConvertDropdownOpen(false);
+                setIsMobileMenuOpen(false);
+                if (typeof window !== "undefined" && window.location.pathname === "/") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+              className="flex items-center"
+            >
               <BrandLogo size="md" />
-            </a>
+            </Link>
           </div>
 
           {/* Center Navigation Bar */}
@@ -391,6 +401,18 @@ export function Header({
               ) : (
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsMegaMenuOpen(false);
+                setIsConvertDropdownOpen(false);
+                onOpenPricing();
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50/70 dark:hover:bg-amber-950/30 transition-colors cursor-pointer"
+            >
+              Pricing
             </button>
           </nav>
 
@@ -682,10 +704,12 @@ export function Header({
                     tools: [
                       { id: "word-to-pdf", name: "Word to PDF (.docx)" },
                       { id: "excel-to-pdf", name: "Excel to PDF (.xlsx)" },
+                      { id: "powerpoint-to-pdf", name: "Slides to PDF (PPT)" },
                       { id: "jpg-to-pdf", name: "JPG & PNG to PDF", badge: "Popular" },
                       { id: "html-to-pdf", name: "HTML to PDF" },
                       { id: "pdf-to-word", name: "PDF to Word (.docx)" },
                       { id: "pdf-to-excel", name: "PDF to Excel (.xlsx)" },
+                      { id: "pdf-to-powerpoint", name: "PDF to Slides (ZIP)" },
                       { id: "pdf-to-jpg", name: "PDF to Images", badge: "Popular" },
                       { id: "pdf-to-pdfa", name: "PDF to PDF/A Archive" },
                     ],
@@ -746,9 +770,21 @@ export function Header({
                   <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   100% Client-Side Engine • Zero Server File Uploads • In-Browser RAM
                 </span>
-                <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
-                  30 Local Instruments Available
-                </span>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMegaMenuOpen(false);
+                      onOpenPricing();
+                    }}
+                    className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                  >
+                    View Pricing &amp; Passes &rarr;
+                  </button>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400 font-mono">
+                    {TOOLS_REGISTRY.length} Local Instruments Available
+                  </span>
+                </div>
               </div>
             </motion.div>
           </>
@@ -906,7 +942,9 @@ export function Header({
                     type="button"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      onOpenPricing();
+                      requestAnimationFrame(() => {
+                        setTimeout(() => onOpenPricing(), 60);
+                      });
                     }}
                     className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-bold text-xs shadow-md shadow-amber-500/20 transition-all cursor-pointer font-sans-display"
                   >
@@ -918,12 +956,16 @@ export function Header({
                     type="button"
                     onClick={() => {
                       setIsMobileMenuOpen(false);
-                      const el = document.getElementById("all-tools");
-                      el?.scrollIntoView({ behavior: "smooth" });
+                      requestAnimationFrame(() => {
+                        setTimeout(() => {
+                          const el = document.getElementById("all-tools");
+                          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 60);
+                      });
                     }}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    <span>Browse All 20+ Tools</span>
+                    <span>Browse All {TOOLS_REGISTRY.length} Tools</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>

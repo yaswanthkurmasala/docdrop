@@ -157,7 +157,7 @@ function renderTypedSignatureToPng(
   ctx.textAlign = "center";
 
   // Shrink font proportionally if text is very long
-  let measured = ctx.measureText(text).width;
+  const measured = ctx.measureText(text).width;
   if (measured > 680) {
     const scale = 680 / measured;
     const basePx = style === "script" ? 92 : 78;

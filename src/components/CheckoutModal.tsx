@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -32,18 +32,14 @@ export function CheckoutModal({
   onUnlockPro,
 }: CheckoutModalProps) {
   const { user } = useAuth();
-  const [email, setEmail] = useState("");
+  const [customEmail, setCustomEmail] = useState<string | null>(null);
+  const email = customEmail ?? user?.email ?? "";
+  const setEmail = (val: string) => setCustomEmail(val);
   const [phone, setPhone] = useState("");
   const [licenseKey, setLicenseKey] = useState("");
   const [activeTab, setActiveTab] = useState<"checkout" | "license">("checkout");
   const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (user?.email && !email) {
-      setEmail(user.email);
-    }
-  }, [user, email]);
 
   const planName = selectedPlan?.name || "Quick Pass (48h)";
   const planPrice = selectedPlan?.price || "₹49";
