@@ -169,12 +169,12 @@ function renderTypedSignatureToPng(
 }
 
 /**
- * Adaptive local-illumination background remover (handles uneven shadows, grey/blue indoor paper photos).
- * Uses an O(W*H) integral image to compare each pixel against its surrounding neighborhood brightness.
+ * Adaptive local-illumination + global contrast background remover.
+ * Strips uniform white paper, shadowed/grey indoor phone photos, and PNG crops with transparent borders.
  */
 async function removePaperBackground(
   dataUrl: string,
-  sensitivity: number = 50,
+  sensitivity: number = 55,
   recolorHex?: string | null
 ): Promise<string> {
   return new Promise((resolve) => {
@@ -197,20 +197,52 @@ async function removePaperBackground(
       const data = imageData.data;
       const totalPixels = w * h;
 
-      // Preserve images that already contain a true alpha channel
+      // Inspect alpha + opaque luminance distribution to distinguish an already-cutout
+      // transparent signature from a PNG screenshot/crop that still contains a paper box.
       let transparentCount = 0;
+      const opaqueLums: number[] = [];
+      const strideSample = Math.max(1, Math.floor(totalPixels / 8000));
       for (let i = 0; i < totalPixels; i++) {
-        if (data[i * 4 + 3] < 235) transparentCount++;
+        const a = data[i * 4 + 3];
+        if (a < 180) {
+          transparentCount++;
+        } else if (i % strideSample === 0) {
+          const idx = i * 4;
+          opaqueLums.push(0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]);
+        }
       }
-      if (transparentCount > totalPixels * 0.05) {
+
+      const transparentFrac = transparentCount / totalPixels;
+      let paperP80 = 255;
+      let inkP10 = 0;
+      if (opaqueLums.length > 10) {
+        opaqueLums.sort((a, b) => a - b);
+        inkP10 = opaqueLums[Math.floor(opaqueLums.length * 0.1)];
+        paperP80 = opaqueLums[Math.floor(opaqueLums.length * 0.8)];
+      }
+
+      // Preserve PNGs that are genuinely already pure ink on transparent alpha (no paper box)
+      const isPureTransparentCutout =
+        transparentFrac > 0.35 && (paperP80 < 115 || paperP80 - inkP10 < 38);
+      if (isPureTransparentCutout) {
         return resolve(exportTrimmedCanvasPng(canvas) || canvas.toDataURL("image/png"));
       }
 
-      // 1. Compute luminance array
+      // Fallback paper brightness for transparent regions so border alpha doesn't skew local averages
+      const fallbackBg = opaqueLums.length > 0 ? paperP80 : 220;
+
+      // 1. Compute luminance array (preserving already-transparent mask separately)
       const lum = new Float32Array(totalPixels);
+      const origOpaque = new Uint8Array(totalPixels);
       for (let i = 0; i < totalPixels; i++) {
         const idx = i * 4;
-        lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        if (data[idx + 3] >= 128) {
+          origOpaque[i] = 1;
+          lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        } else {
+          origOpaque[i] = 0;
+          lum[i] = fallbackBg;
+        }
       }
 
       // 2. Build prefix sum (integral image) over (w+1) x (h+1) for O(1) window means
@@ -227,12 +259,11 @@ async function removePaperBackground(
         }
       }
 
-      // Window radius ~8% of smallest dimension (adapts to shadows while staying larger than pen strokes)
-      const radius = Math.max(14, Math.min(48, Math.round(Math.min(w, h) * 0.08)));
+      // Generous window radius (~12% of min dimension) prevents hollowing thick ink strokes
+      const radius = Math.max(18, Math.min(72, Math.round(Math.min(w, h) * 0.12)));
 
-      // Map sensitivity (10..90) -> required darkness delta below local paper brightness
-      // Higher sensitivity picks up lighter pen strokes (lower threshold)
-      const minDelta = Math.max(8, Math.round(42 - sensitivity * 0.36));
+      // Map sensitivity (15..90) -> required darkness delta below local paper brightness
+      const minDelta = Math.max(7, Math.round(38 - sensitivity * 0.34));
       const fullInkDelta = minDelta + 16;
 
       let tintR = 20;
@@ -252,6 +283,13 @@ async function removePaperBackground(
         const rOffset1 = (y1 + 1) * stride;
 
         for (let x = 0; x < w; x++) {
+          const pIdx = y * w + x;
+          const rgbaIdx = pIdx * 4;
+          if (!origOpaque[pIdx]) {
+            data[rgbaIdx + 3] = 0;
+            continue;
+          }
+
           const x0 = Math.max(0, x - radius);
           const x1 = Math.min(w - 1, x + radius);
           const area = (x1 - x0 + 1) * (y1 - y0 + 1);
@@ -263,9 +301,7 @@ async function removePaperBackground(
             integral[rOffset0 + x0];
           const localPaperBg = sum / area;
 
-          const pIdx = y * w + x;
           const delta = localPaperBg - lum[pIdx];
-          const rgbaIdx = pIdx * 4;
 
           if (delta <= minDelta) {
             data[rgbaIdx + 3] = 0;
@@ -288,6 +324,28 @@ async function removePaperBackground(
               data[rgbaIdx] = Math.max(0, Math.round(data[rgbaIdx] * 0.72));
               data[rgbaIdx + 1] = Math.max(0, Math.round(data[rgbaIdx + 1] * 0.72));
               data[rgbaIdx + 2] = Math.max(0, Math.round(data[rgbaIdx + 2] * 0.72));
+            }
+          }
+        }
+      }
+
+      // 4. Despeckle isolated single-pixel paper noise so auto-trim crops tight to strokes
+      if (w > 4 && h > 4) {
+        const alphaCopy = new Uint8Array(totalPixels);
+        for (let i = 0; i < totalPixels; i++) alphaCopy[i] = data[i * 4 + 3];
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const i = y * w + x;
+            if (alphaCopy[i] === 0) continue;
+            let neighbors = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                if (alphaCopy[(y + dy) * w + (x + dx)] > 24) neighbors++;
+              }
+            }
+            if (neighbors === 0) {
+              data[i * 4 + 3] = 0;
             }
           }
         }
@@ -323,7 +381,7 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
   const [rawUploadedDataUrl, setRawUploadedDataUrl] = useState<string | null>(null);
   const [uploadedDataUrl, setUploadedDataUrl] = useState<string | null>(null);
   const [removeBgEnabled, setRemoveBgEnabled] = useState(true);
-  const [bgSensitivity, setBgSensitivity] = useState<number>(52);
+  const [bgSensitivity, setBgSensitivity] = useState<number>(56);
   const [recolorUploadedInk, setRecolorUploadedInk] = useState<boolean>(false);
 
   // Interactive Drag & Resize state on PDF Canvas
@@ -1305,6 +1363,9 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       className="hidden"
+                      onClick={(e) => {
+                        (e.currentTarget as HTMLInputElement).value = "";
+                      }}
                       onChange={(e) => {
                         const imgFile = e.target.files?.[0];
                         if (!imgFile) return;
