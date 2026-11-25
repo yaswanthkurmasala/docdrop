@@ -306,35 +306,20 @@ export function AuthModal({
                     Password
                   </label>
                   {tab === "login" && (
-                    <div className="flex items-center gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEmail("demo@docmark.app");
-                          setPassword("Password123!");
-                          setError(null);
-                        }}
-                        className="text-[11px] font-mono text-zinc-500 hover:text-zinc-950 dark:hover:text-white underline cursor-pointer"
-                        title="Auto-fill with test demo credentials"
-                      >
-                        ⚡ Fill Demo
-                      </button>
-                      <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError(null);
-                          if (!email.trim() || !email.includes("@")) {
-                            setError("Enter your email address above first, then click Forgot password.");
-                            return;
-                          }
-                          setSuccessMsg(`If an account exists for ${email.trim()}, check your inbox or use Continue with Google.`);
-                        }}
-                        className="text-[11px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        if (!email.trim() || !email.includes("@")) {
+                          setError("Enter your email address above first, then click Forgot password.");
+                          return;
+                        }
+                        setSuccessMsg(`If an account exists for ${email.trim()}, check your inbox or use Continue with Google.`);
+                      }}
+                      className="text-[11px] text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
                   )}
                 </div>
                 <div className="relative">
