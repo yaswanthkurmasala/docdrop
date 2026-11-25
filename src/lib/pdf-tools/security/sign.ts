@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFImage } from "pdf-lib";
 
 export type SignatureMode = "type" | "draw" | "upload";
 
@@ -12,9 +12,22 @@ export type SignaturePosition =
 
 export type SignaturePageScope = "last_page" | "first_page" | "all_pages" | "custom";
 
-export type SignatureInkColor = "blue" | "dark" | "purple";
+export type SignatureInkColor = "blue" | "dark" | "purple" | "crimson" | "emerald";
 
 export type CursiveStyle = "formal" | "script" | "modern" | "bold";
+
+export type SignatureStampStyle = "pure" | "line" | "badge";
+
+export interface SignaturePlacement {
+  id: string;
+  pageNumber: number; // 1-based page number
+  xPercent: number; // 0..100 from LEFT edge
+  yPercent: number; // 0..100 from TOP edge
+  widthPercent: number; // percentage of PDF page width
+  heightPercent: number; // percentage of PDF page height
+  kind?: "signature" | "initials" | "date";
+  textOverride?: string;
+}
 
 export interface SignaturePreset {
   id: string;
@@ -24,6 +37,7 @@ export interface SignaturePreset {
   pageScope: SignaturePageScope;
   inkColor: SignatureInkColor;
   includeBadge: boolean;
+  stampStyle?: SignatureStampStyle;
   desc: string;
 }
 
@@ -36,17 +50,19 @@ export const SIGNATURE_PRESETS: SignaturePreset[] = [
     pageScope: "last_page",
     inkColor: "blue",
     includeBadge: true,
-    desc: "Navy blue cursive signature with certified legal timestamp block on final page",
+    stampStyle: "badge",
+    desc: "Navy blue signature with certified legal timestamp & SHA-256 block",
   },
   {
     id: "freehand_contract",
-    name: "Drawn Signature Block",
+    name: "Freehand Pure Ink",
     mode: "draw",
     position: "bottom-right",
     pageScope: "last_page",
     inkColor: "dark",
-    includeBadge: true,
-    desc: "Custom freehand stylus signature with audit metadata",
+    includeBadge: false,
+    stampStyle: "pure",
+    desc: "Crisp handwritten stylus signature with zero box or extra lines",
   },
   {
     id: "initial_every_page",
@@ -56,7 +72,8 @@ export const SIGNATURE_PRESETS: SignaturePreset[] = [
     pageScope: "all_pages",
     inkColor: "blue",
     includeBadge: false,
-    desc: "Compact initial stamp placed on every document page for complete sign-off",
+    stampStyle: "line",
+    desc: "Compact signature & date line placed cleanly across every page",
   },
   {
     id: "corporate_seal",
@@ -66,17 +83,19 @@ export const SIGNATURE_PRESETS: SignaturePreset[] = [
     pageScope: "last_page",
     inkColor: "purple",
     includeBadge: true,
+    stampStyle: "badge",
     desc: "High-contrast audit certification badge with SHA-256 integrity hash",
   },
   {
     id: "clean_signature",
-    name: "Minimalist Signature",
+    name: "Minimalist Signature Line",
     mode: "type",
     position: "bottom-right",
     pageScope: "last_page",
     inkColor: "dark",
     includeBadge: false,
-    desc: "Direct cursive signature stamp without bounding certificate box",
+    stampStyle: "line",
+    desc: "Clean cursive signature with baseline & date without bounding box",
   },
 ];
 
@@ -93,6 +112,8 @@ export interface SignPdfOptions {
   inkColor?: SignatureInkColor;
   cursiveStyle?: CursiveStyle;
   includeVerificationBadge?: boolean;
+  stampStyle?: SignatureStampStyle;
+  customPlacements?: SignaturePlacement[];
   margin?: number;
   onProgress?: (percent: number, message: string) => void;
 }
@@ -109,9 +130,6 @@ export interface SignPdfResult {
   summary: string;
 }
 
-/**
- * Computes deterministic SHA-256 document fingerprint
- */
 async function computeSha256(buffer: ArrayBuffer): Promise<string> {
   try {
     if (typeof crypto !== "undefined" && crypto.subtle) {
@@ -119,7 +137,7 @@ async function computeSha256(buffer: ArrayBuffer): Promise<string> {
       const hashArr = Array.from(new Uint8Array(hashBuf));
       return hashArr.map((b) => b.toString(16).padStart(2, "0")).join("");
     }
-  } catch (e) {
+  } catch {
     // Fallback if Web Crypto is unavailable
   }
   let hash = 0x811c9dc5;
@@ -131,9 +149,6 @@ async function computeSha256(buffer: ArrayBuffer): Promise<string> {
   return Math.abs(hash).toString(16).padStart(32, "0").slice(0, 32);
 }
 
-/**
- * Sanitizes strings for StandardFonts in pdf-lib (WinAnsi compatible)
- */
 function sanitizeWinAnsi(str: string): string {
   if (!str) return "";
   return str
@@ -156,19 +171,26 @@ function sanitizeWinAnsi(str: string): string {
 function getInkRgb(ink: SignatureInkColor = "blue") {
   switch (ink) {
     case "blue":
-      return rgb(0.05, 0.18, 0.55); // Deep legal navy
+      return rgb(0.05, 0.22, 0.65);
     case "purple":
-      return rgb(0.35, 0.08, 0.55); // Royal executive purple
+      return rgb(0.35, 0.08, 0.55);
+    case "crimson":
+      return rgb(0.7, 0.1, 0.14);
+    case "emerald":
+      return rgb(0.02, 0.45, 0.32);
     case "dark":
     default:
-      return rgb(0.1, 0.1, 0.12); // Formal charcoal black
+      return rgb(0.08, 0.09, 0.12);
   }
 }
 
-/**
- * Signs a PDF document with certified digital stamp or signature image.
- * Fully supports modern options object while maintaining backward compatibility with legacy positional arguments.
- */
+function getInitials(name: string): string {
+  const parts = (name || "A S").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "AS";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}.${parts[parts.length - 1][0]}.`.toUpperCase();
+}
+
 export async function signPdf(
   file: File,
   optionsOrSignature: SignPdfOptions | string = "Digitally Signed",
@@ -194,18 +216,21 @@ export async function signPdf(
     signerName = "Authorized Signer",
     signerTitle = "Authorized Signatory",
     signerReason = "Approved & Accepted",
-    signerLocation = "Client Verification",
     signatureImage,
-    mode = "type",
     position = "bottom-right",
     pageScope = "last_page",
     targetPage = 1,
     inkColor = "blue",
     cursiveStyle = "script",
     includeVerificationBadge = true,
+    stampStyle: explicitStampStyle,
+    customPlacements,
     margin = 36,
     onProgress,
   } = options;
+
+  const stampStyle: SignatureStampStyle =
+    explicitStampStyle || (includeVerificationBadge ? "badge" : "line");
 
   onProgress?.(15, "Loading PDF document in-browser...");
   const buffer = await file.arrayBuffer();
@@ -214,27 +239,15 @@ export async function signPdf(
   const pdfDoc = await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true });
   const total = pdfDoc.getPageCount();
   const shortHash = fullSha256.slice(0, 16);
-  const auditId = `CERT-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+  const auditId = `CERT-${Math.random().toString(36).substring(2, 9).toUpperCase()}-${Date.now()
+    .toString(36)
+    .toUpperCase()}`;
   const now = new Date();
-  const formattedTimestamp = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 8)} UTC`;
+  const dateOnly = now.toISOString().slice(0, 10);
+  const formattedTimestamp = `${dateOnly} ${now.toTimeString().slice(0, 8)} UTC`;
 
-  // Determine target pages
-  const pagesToSignIndices: number[] = [];
-  if (pageScope === "all_pages") {
-    for (let i = 0; i < total; i++) pagesToSignIndices.push(i);
-  } else if (pageScope === "first_page") {
-    pagesToSignIndices.push(0);
-  } else if (pageScope === "custom") {
-    const validIdx = Math.max(0, Math.min((targetPage || 1) - 1, total - 1));
-    pagesToSignIndices.push(validIdx);
-  } else {
-    // default: last_page
-    pagesToSignIndices.push(total - 1);
-  }
+  onProgress?.(55, "Embedding fonts & high-DPI signature graphics...");
 
-  onProgress?.(55, "Embedding fonts & signature graphics...");
-
-  // Embed Fonts
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   let fontSignature: PDFFont;
@@ -243,192 +256,301 @@ export async function signPdf(
   } else if (cursiveStyle === "bold") {
     fontSignature = await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique);
   } else {
-    // script / modern
     fontSignature = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
   }
 
-  // Pre-embed signature image if in draw/upload mode
-  let embeddedSignatureImg: any = null;
+  let embeddedSignatureImg: PDFImage | null = null;
   if (signatureImage && signatureImage.startsWith("data:image/")) {
     try {
       const isPng = signatureImage.startsWith("data:image/png");
       const base64Data = signatureImage.split(",")[1];
       const imgBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-      embeddedSignatureImg = isPng ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+      embeddedSignatureImg = isPng
+        ? await pdfDoc.embedPng(imgBytes)
+        : await pdfDoc.embedJpg(imgBytes);
     } catch (imgErr) {
       console.warn("Could not embed signature image, falling back to cursive typography:", imgErr);
     }
   }
 
-  onProgress?.(75, "Stamping digital signature blocks...");
-
+  onProgress?.(75, "Stamping signatures onto exact document coordinates...");
   const ink = getInkRgb(inkColor);
+  const signedPagesSet = new Set<number>();
 
-  // Dimensions of signature block
-  const blockWidth = includeVerificationBadge ? 220 : 160;
-  const blockHeight = includeVerificationBadge ? 82 : 44;
-
-  for (const pageIdx of pagesToSignIndices) {
+  // Helper to draw a signature block or image inside any exact rectangle (bottom-left origin x, y, w, h)
+  const renderBlockAt = (
+    pageIdx: number,
+    x: number,
+    y: number,
+    blockW: number,
+    blockH: number,
+    kind: "signature" | "initials" | "date" = "signature",
+    textOverride?: string
+  ) => {
     const page = pdfDoc.getPage(pageIdx);
     const { width: pWidth, height: pHeight } = page.getSize();
+    const safeX = Math.max(4, Math.min(x, pWidth - blockW - 4));
+    const safeY = Math.max(4, Math.min(y, pHeight - blockH - 4));
 
-    // Calculate coordinates based on position
-    let x = pWidth - blockWidth - margin;
-    let y = margin;
-
-    if (position === "bottom-left") {
-      x = margin;
-      y = margin;
-    } else if (position === "bottom-center") {
-      x = (pWidth - blockWidth) / 2;
-      y = margin;
-    } else if (position === "top-right") {
-      x = pWidth - blockWidth - margin;
-      y = pHeight - blockHeight - margin;
-    } else if (position === "top-left") {
-      x = margin;
-      y = pHeight - blockHeight - margin;
-    } else if (position === "top-center") {
-      x = (pWidth - blockWidth) / 2;
-      y = pHeight - blockHeight - margin;
+    if (kind === "date") {
+      const dateStr = sanitizeWinAnsi(textOverride || dateOnly);
+      const fontSize = Math.max(9, Math.min(14, blockH * 0.55));
+      page.drawText(dateStr, {
+        x: safeX + 4,
+        y: safeY + (blockH - fontSize) / 2,
+        size: fontSize,
+        font: fontBold,
+        color: ink,
+      });
+      return;
     }
 
-    // 1. Draw Certificate Verification Box if enabled
-    if (includeVerificationBadge) {
-      // Background card
+    if (kind === "initials") {
+      const initStr = sanitizeWinAnsi(textOverride || getInitials(signerName));
+      const fontSize = Math.max(12, Math.min(20, blockH * 0.65));
+      page.drawText(initStr, {
+        x: safeX + 4,
+        y: safeY + (blockH - fontSize) / 2 + 2,
+        size: fontSize,
+        font: fontSignature,
+        color: ink,
+      });
+      return;
+    }
+
+    if (stampStyle === "badge") {
       page.drawRectangle({
-        x: x - 4,
-        y: y - 4,
-        width: blockWidth + 8,
-        height: blockHeight + 8,
-        color: rgb(0.98, 0.98, 0.99),
-        borderColor: rgb(0.82, 0.84, 0.9),
+        x: safeX,
+        y: safeY,
+        width: blockW,
+        height: blockH,
+        color: rgb(0.985, 0.985, 0.995),
+        borderColor: rgb(0.8, 0.84, 0.92),
         borderWidth: 0.75,
       });
 
-      // Top Security Ribbon
+      const ribbonH = Math.min(13, Math.max(10, blockH * 0.17));
       page.drawRectangle({
-        x: x - 4,
-        y: y + blockHeight + 4 - 13,
-        width: blockWidth + 8,
-        height: 13,
-        color: inkColor === "purple" ? rgb(0.35, 0.08, 0.55) : inkColor === "dark" ? rgb(0.15, 0.15, 0.18) : rgb(0.08, 0.22, 0.6),
+        x: safeX,
+        y: safeY + blockH - ribbonH,
+        width: blockW,
+        height: ribbonH,
+        color: ink,
       });
 
       page.drawText(sanitizeWinAnsi("DIGITALLY CERTIFIED & VERIFIED"), {
-        x: x + 6,
-        y: y + blockHeight + 4 - 10,
-        size: 7,
+        x: safeX + 6,
+        y: safeY + blockH - ribbonH + 3,
+        size: 6.5,
         font: fontBold,
         color: rgb(1, 1, 1),
       });
 
       page.drawText(sanitizeWinAnsi(auditId.slice(0, 14)), {
-        x: x + blockWidth - 45,
-        y: y + blockHeight + 4 - 10,
-        size: 6.5,
+        x: safeX + Math.max(80, blockW - 58),
+        y: safeY + blockH - ribbonH + 3,
+        size: 6,
         font: fontRegular,
-        color: rgb(0.85, 0.9, 1),
+        color: rgb(0.88, 0.92, 1),
       });
 
-      // Draw Signature inside the card
+      const sigAreaTop = safeY + blockH - ribbonH - 4;
+      const sigAreaBottom = safeY + Math.min(34, blockH * 0.44);
+      const sigMaxH = Math.max(18, sigAreaTop - sigAreaBottom);
+      const sigMaxW = Math.max(60, blockW - 16);
+
       if (embeddedSignatureImg) {
+        const scaled = embeddedSignatureImg.scaleToFit(sigMaxW, sigMaxH);
         page.drawImage(embeddedSignatureImg, {
-          x: x + 6,
-          y: y + blockHeight - 42,
-          width: 95,
-          height: 26,
+          x: safeX + 8,
+          y: sigAreaBottom + (sigMaxH - scaled.height) / 2,
+          width: scaled.width,
+          height: scaled.height,
         });
       } else {
+        const fontSize = Math.max(11, Math.min(18, sigMaxH * 0.7));
         page.drawText(sanitizeWinAnsi(signerName), {
-          x: x + 6,
-          y: y + blockHeight - 34,
-          size: 16,
+          x: safeX + 8,
+          y: sigAreaBottom + (sigMaxH - fontSize) / 2 + 2,
+          size: fontSize,
           font: fontSignature,
           color: ink,
         });
       }
 
-      // Metadata details lines
-      const detailsX = x + 6;
-      let textY = y + blockHeight - 48;
+      const detailsX = safeX + 6;
+      const lineStep = Math.max(7, Math.min(9, (sigAreaBottom - safeY) / 4.2));
+      let textY = sigAreaBottom - lineStep;
 
-      page.drawText(sanitizeWinAnsi(`Signer: ${signerName} • ${signerTitle}`), {
+      page.drawText(sanitizeWinAnsi(`Signer: ${signerName} - ${signerTitle}`).slice(0, 52), {
         x: detailsX,
         y: textY,
-        size: 7,
+        size: 6.5,
         font: fontBold,
         color: rgb(0.2, 0.2, 0.25),
       });
 
-      textY -= 9;
-      page.drawText(sanitizeWinAnsi(`Reason: ${signerReason}`), {
-        x: detailsX,
-        y: textY,
-        size: 6.5,
-        font: fontRegular,
-        color: rgb(0.35, 0.35, 0.4),
-      });
-
-      textY -= 9;
-      page.drawText(sanitizeWinAnsi(`Time: ${formattedTimestamp}`), {
-        x: detailsX,
-        y: textY,
-        size: 6.5,
-        font: fontRegular,
-        color: rgb(0.35, 0.35, 0.4),
-      });
-
-      textY -= 9;
-      page.drawText(sanitizeWinAnsi(`SHA-256: ${shortHash}... (DocDrop Verified)`), {
+      textY -= lineStep;
+      page.drawText(sanitizeWinAnsi(`Reason: ${signerReason}`).slice(0, 52), {
         x: detailsX,
         y: textY,
         size: 6,
         font: fontRegular,
-        color: rgb(0.45, 0.45, 0.5),
+        color: rgb(0.35, 0.35, 0.4),
       });
-    } else {
-      // Minimalist Signature (No box)
+
+      textY -= lineStep;
+      page.drawText(sanitizeWinAnsi(`Time: ${formattedTimestamp}`), {
+        x: detailsX,
+        y: textY,
+        size: 6,
+        font: fontRegular,
+        color: rgb(0.35, 0.35, 0.4),
+      });
+
+      textY -= lineStep;
+      if (textY >= safeY + 2) {
+        page.drawText(sanitizeWinAnsi(`SHA-256: ${shortHash}...`), {
+          x: detailsX,
+          y: textY,
+          size: 5.5,
+          font: fontRegular,
+          color: rgb(0.45, 0.45, 0.52),
+        });
+      }
+    } else if (stampStyle === "line") {
+      const footerH = 14;
+      const sigMaxH = Math.max(18, blockH - footerH - 4);
+      const sigMaxW = Math.max(60, blockW - 4);
+
       if (embeddedSignatureImg) {
+        const scaled = embeddedSignatureImg.scaleToFit(sigMaxW, sigMaxH);
         page.drawImage(embeddedSignatureImg, {
-          x,
-          y: y + 14,
-          width: 120,
-          height: 32,
+          x: safeX + (blockW - scaled.width) / 2,
+          y: safeY + footerH + (sigMaxH - scaled.height) / 2,
+          width: scaled.width,
+          height: scaled.height,
         });
       } else {
+        const fontSize = Math.max(12, Math.min(22, sigMaxH * 0.72));
         page.drawText(sanitizeWinAnsi(signerName), {
-          x,
-          y: y + 16,
-          size: 20,
+          x: safeX + 4,
+          y: safeY + footerH + 4,
+          size: fontSize,
           font: fontSignature,
           color: ink,
         });
       }
 
-      // Baseline signing line
       page.drawLine({
-        start: { x, y: y + 12 },
-        end: { x: x + 150, y: y + 12 },
+        start: { x: safeX, y: safeY + 11 },
+        end: { x: safeX + blockW, y: safeY + 11 },
         thickness: 0.75,
-        color: rgb(0.7, 0.7, 0.75),
+        color: rgb(0.65, 0.68, 0.74),
       });
 
-      page.drawText(sanitizeWinAnsi(`Digitally signed by ${signerName} • ${now.toISOString().slice(0, 10)}`), {
-        x,
-        y: y + 2,
-        size: 7,
+      page.drawText(sanitizeWinAnsi(`Signed by ${signerName} - ${dateOnly}`), {
+        x: safeX + 2,
+        y: safeY + 2,
+        size: 6.5,
         font: fontRegular,
-        color: rgb(0.45, 0.45, 0.5),
+        color: rgb(0.4, 0.42, 0.48),
       });
+    } else {
+      // Pure Signature Only (No box, no border, no footer line — clean ink onto existing form lines)
+      if (embeddedSignatureImg) {
+        const scaled = embeddedSignatureImg.scaleToFit(blockW, blockH);
+        page.drawImage(embeddedSignatureImg, {
+          x: safeX + (blockW - scaled.width) / 2,
+          y: safeY + (blockH - scaled.height) / 2,
+          width: scaled.width,
+          height: scaled.height,
+        });
+      } else {
+        const fontSize = Math.max(14, Math.min(28, blockH * 0.65));
+        page.drawText(sanitizeWinAnsi(signerName), {
+          x: safeX + 4,
+          y: safeY + (blockH - fontSize) / 2 + 2,
+          size: fontSize,
+          font: fontSignature,
+          color: ink,
+        });
+      }
     }
+  };
+
+  if (customPlacements && customPlacements.length > 0) {
+    // Render exact custom user-dragged placements per page
+    for (const placement of customPlacements) {
+      const pageIdx = Math.max(0, Math.min(placement.pageNumber - 1, total - 1));
+      const page = pdfDoc.getPage(pageIdx);
+      const { width: pWidth, height: pHeight } = page.getSize();
+
+      const blockW = Math.max(48, (placement.widthPercent / 100) * pWidth);
+      const blockH = Math.max(22, (placement.heightPercent / 100) * pHeight);
+      const x = (placement.xPercent / 100) * pWidth;
+      // Convert browser top-origin y% to PDF bottom-origin point y
+      const y = pHeight - ((placement.yPercent + placement.heightPercent) / 100) * pHeight;
+
+      renderBlockAt(pageIdx, x, y, blockW, blockH, placement.kind || "signature", placement.textOverride);
+      signedPagesSet.add(pageIdx + 1);
+    }
+  } else {
+    // Standard corner preset placements (legacy & preset mode)
+    const pagesToSignIndices: number[] = [];
+    if (pageScope === "all_pages") {
+      for (let i = 0; i < total; i++) pagesToSignIndices.push(i);
+    } else if (pageScope === "first_page") {
+      pagesToSignIndices.push(0);
+    } else if (pageScope === "custom") {
+      const validIdx = Math.max(0, Math.min((targetPage || 1) - 1, total - 1));
+      pagesToSignIndices.push(validIdx);
+    } else {
+      pagesToSignIndices.push(total - 1);
+    }
+
+    const blockW = stampStyle === "badge" ? 220 : 165;
+    const blockH = stampStyle === "badge" ? 84 : 46;
+
+    for (const pageIdx of pagesToSignIndices) {
+      const page = pdfDoc.getPage(pageIdx);
+      const { width: pWidth, height: pHeight } = page.getSize();
+
+      let x = pWidth - blockW - margin;
+      let y = margin;
+
+      if (position === "bottom-left") {
+        x = margin;
+        y = margin;
+      } else if (position === "bottom-center") {
+        x = (pWidth - blockW) / 2;
+        y = margin;
+      } else if (position === "top-right") {
+        x = pWidth - blockW - margin;
+        y = pHeight - blockH - margin;
+      } else if (position === "top-left") {
+        x = margin;
+        y = pHeight - blockH - margin;
+      } else if (position === "top-center") {
+        x = (pWidth - blockW) / 2;
+        y = pHeight - blockH - margin;
+      }
+
+      renderBlockAt(pageIdx, x, y, blockW, blockH, "signature");
+      signedPagesSet.add(pageIdx + 1);
+    }
+  }
+
+  try {
+    pdfDoc.setKeywords(["DocDrop Verified Signature", auditId, `SHA256:${shortHash}`]);
+  } catch {
+    // ignore metadata errors on locked dictionaries
   }
 
   onProgress?.(95, "Finalizing signed PDF document...");
   const pdfBytes = await pdfDoc.save();
   const baseName = file.name.replace(/\.[^/.]+$/, "");
-
-  const pagesFormatted = pagesToSignIndices.map((i) => i + 1);
+  const pagesFormatted = Array.from(signedPagesSet).sort((a, b) => a - b);
 
   return {
     pdfBytes,

@@ -342,6 +342,21 @@ async function runCompleteSuiteTest() {
     if (!resAdv.sha256Digest || resAdv.sha256Digest.length < 32 || !resAdv.auditId) {
       throw new Error("Failed signPdf cryptographic audit trail");
     }
+
+    // 3. Interactive custom placements (signature + initials + date across arbitrary coordinates & pages)
+    const resCustom = await signPdf(samplePdf, {
+      signerName: "Yaswanth Kurmasala",
+      stampStyle: "pure",
+      inkColor: "crimson",
+      customPlacements: [
+        { id: "p1_init", pageNumber: 1, xPercent: 10, yPercent: 85, widthPercent: 12, heightPercent: 6, kind: "initials" },
+        { id: "p4_sig", pageNumber: 4, xPercent: 52.5, yPercent: 72.3, widthPercent: 28, heightPercent: 10, kind: "signature" },
+        { id: "p4_date", pageNumber: 4, xPercent: 52.5, yPercent: 84, widthPercent: 18, heightPercent: 6, kind: "date" },
+      ],
+    });
+    if (!resCustom.pdfBytes || resCustom.pagesSigned.length !== 2 || resCustom.pagesSigned[0] !== 1 || resCustom.pagesSigned[1] !== 4) {
+      throw new Error("Failed signPdf custom multi-page drag placements");
+    }
   });
 
   await check("Redact PDF (Blackout sensitive area)", async () => {

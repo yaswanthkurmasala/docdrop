@@ -112,13 +112,6 @@ import {
   convertPdfToPdfA,
   cropPdf,
   signPdf,
-  SIGNATURE_PRESETS,
-  type SignatureMode,
-  type SignaturePosition,
-  type SignaturePageScope,
-  type SignatureInkColor,
-  type CursiveStyle,
-  type SignPdfOptions,
   type SignPdfResult,
   redactPdf,
   REDACT_PRESETS,
@@ -144,6 +137,7 @@ import {
 import { callGeminiAi } from "@/lib/gemini";
 import { getPdfPageCount } from "@/lib/pdf-tools/merge-pdf";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
+import { SignPdfStudio, type SignStudioConfig } from "@/components/tools/SignPdfStudio";
 import { useAuth } from "@/context/AuthContext";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
@@ -387,28 +381,29 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [repairProgress, setRepairProgress] = useState<{ percent: number; message: string } | null>(null);
   const [userPassword, setUserPassword] = useState("123456");
   const [unlockPassword, setUnlockPassword] = useState("123456");
-  // Sign PDF Studio parameters
-  const [signatureName, setSignatureName] = useState("Jane Doe");
-  const [signerTitle, setSignerTitle] = useState("Authorized Signatory");
-  const [signerReason, setSignerReason] = useState("Approved & Accepted");
-  const [signatureMode, setSignatureMode] = useState<SignatureMode>("type");
-  const [signaturePosition, setSignaturePosition] = useState<SignaturePosition>("bottom-right");
-  const [signaturePageScope, setSignaturePageScope] = useState<SignaturePageScope>("last_page");
-  const [signatureTargetPage, setSignatureTargetPage] = useState<number>(1);
-  const [signatureInkColor, setSignatureInkColor] = useState<SignatureInkColor>("blue");
-  const [signatureCursiveStyle, setSignatureCursiveStyle] = useState<CursiveStyle>("script");
-  const [signatureIncludeBadge, setSignatureIncludeBadge] = useState<boolean>(true);
-  const [signatureDrawnImage, setSignatureDrawnImage] = useState<string | null>(null);
-  const [signatureUploadedImage, setSignatureUploadedImage] = useState<string | null>(null);
-  const [signatureActivePreset, setSignatureActivePreset] = useState<string>("executive_approval");
-  const [signaturePreviewPage, setSignaturePreviewPage] = useState<"last" | "first">("last");
-  const [signThumbnailFirst, setSignThumbnailFirst] = useState<string | null>(null);
-  const [signThumbnailLast, setSignThumbnailLast] = useState<string | null>(null);
-  const [isLoadingSignThumbnails, setIsLoadingSignThumbnails] = useState(false);
+  // Interactive Sign PDF Studio parameters
+  const [signStudioConfig, setSignStudioConfig] = useState<SignStudioConfig>({
+    signerName: "Authorized Signer",
+    signerTitle: "Authorized Signatory",
+    signerReason: "Approved & Accepted",
+    mode: "draw",
+    inkColor: "blue",
+    cursiveStyle: "script",
+    stampStyle: "pure",
+    placements: [
+      {
+        id: "sig_default",
+        pageNumber: 1,
+        xPercent: 58,
+        yPercent: 78,
+        widthPercent: 28,
+        heightPercent: 10,
+        kind: "signature",
+      },
+    ],
+  });
   const [signProgress, setSignProgress] = useState<{ percent: number; message: string } | null>(null);
   const [signResultData, setSignResultData] = useState<SignPdfResult | null>(null);
-  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDrawingSig, setIsDrawingSig] = useState(false);
 
   // OCR Text Layer Audit parameters
   const [ocrMode, setOcrMode] = useState<"audit" | "vision" | "searchable_pdf">("audit");
@@ -944,100 +939,6 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     }
   };
 
-  const loadSignThumbnails = async (pdfFile: File) => {
-    setIsLoadingSignThumbnails(true);
-    try {
-      const pdfjs = await import("@/lib/pdf-tools/common/pdfjs-loader").then((m) => m.loadPdfJs());
-      const buffer = await pdfFile.arrayBuffer();
-      const doc = await pdfjs.getDocument({
-        data: new Uint8Array(buffer.slice(0)),
-        useSystemFonts: true,
-      }).promise;
-
-      if (doc.numPages >= 1) {
-        const page1 = await doc.getPage(1);
-        const viewport1 = page1.getViewport({ scale: 0.6 });
-        const canvas1 = document.createElement("canvas");
-        const ctx1 = canvas1.getContext("2d");
-        if (ctx1) {
-          canvas1.width = viewport1.width;
-          canvas1.height = viewport1.height;
-          await (page1 as any).render({ canvasContext: ctx1, viewport: viewport1 }).promise;
-          setSignThumbnailFirst(canvas1.toDataURL("image/webp", 0.85));
-        }
-      }
-
-      if (doc.numPages >= 2) {
-        const pageLast = await doc.getPage(doc.numPages);
-        const viewportLast = pageLast.getViewport({ scale: 0.6 });
-        const canvasLast = document.createElement("canvas");
-        const ctxLast = canvasLast.getContext("2d");
-        if (ctxLast) {
-          canvasLast.width = viewportLast.width;
-          canvasLast.height = viewportLast.height;
-          await (pageLast as any).render({ canvasContext: ctxLast, viewport: viewportLast }).promise;
-          setSignThumbnailLast(canvasLast.toDataURL("image/webp", 0.85));
-        }
-      } else {
-        setSignThumbnailLast(null);
-      }
-    } catch (e) {
-      console.warn("Could not load sign thumbnails:", e);
-    } finally {
-      setIsLoadingSignThumbnails(false);
-    }
-  };
-
-  const startDrawingSig = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = signatureInkColor === "blue" ? "#002b80" : signatureInkColor === "purple" ? "#4a0e78" : "#1a1a1a";
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    setIsDrawingSig(true);
-  };
-
-  const drawSig = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingSig) return;
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const stopDrawingSig = () => {
-    if (!isDrawingSig) return;
-    setIsDrawingSig(false);
-    const canvas = signatureCanvasRef.current;
-    if (canvas) {
-      setSignatureDrawnImage(canvas.toDataURL("image/png"));
-    }
-  };
-
-  const clearSignatureCanvas = () => {
-    const canvas = signatureCanvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-    setSignatureDrawnImage(null);
-  };
-
   const loadRedactThumbnail = async (pdfFile: File, pageIndex = 1) => {
     setIsLoadingRedactThumb(true);
     try {
@@ -1257,26 +1158,28 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setTranslateActiveTab("side_by_side");
     setTranslateSearchQuery("");
     setTranslateFilterType("all");
-    setSignatureName("Jane Doe");
-    setSignerTitle("Authorized Signatory");
-    setSignerReason("Approved & Accepted");
-    setSignatureMode("type");
-    setSignaturePosition("bottom-right");
-    setSignaturePageScope("last_page");
-    setSignatureTargetPage(1);
-    setSignatureInkColor("blue");
-    setSignatureCursiveStyle("script");
-    setSignatureIncludeBadge(true);
-    setSignatureDrawnImage(null);
-    setSignatureUploadedImage(null);
-    setSignatureActivePreset("executive_approval");
-    setSignaturePreviewPage("last");
-    setSignThumbnailFirst(null);
-    setSignThumbnailLast(null);
-    setIsLoadingSignThumbnails(false);
+    setSignStudioConfig({
+      signerName: "Authorized Signer",
+      signerTitle: "Authorized Signatory",
+      signerReason: "Approved & Accepted",
+      mode: "draw",
+      inkColor: "blue",
+      cursiveStyle: "script",
+      stampStyle: "pure",
+      placements: [
+        {
+          id: "sig_default",
+          pageNumber: 1,
+          xPercent: 58,
+          yPercent: 78,
+          widthPercent: 28,
+          heightPercent: 10,
+          kind: "signature",
+        },
+      ],
+    });
     setSignProgress(null);
     setSignResultData(null);
-    clearSignatureCanvas();
     setRedactMode("smart_pii");
     setRedactSearchTerm("CONFIDENTIAL");
     setRedactPiiCategories({
@@ -1367,8 +1270,6 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         loadWatermarkThumbnail(f);
       } else if (toolId === "add-page-numbers") {
         loadNumberThumbnails(f);
-      } else if (toolId === "sign-pdf") {
-        loadSignThumbnails(f);
       } else if (toolId === "redact-pdf") {
         loadRedactThumbnail(f, 1);
       }
@@ -1418,8 +1319,6 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           loadWatermarkThumbnail(samplePdf);
         } else if (toolId === "add-page-numbers") {
           loadNumberThumbnails(samplePdf);
-        } else if (toolId === "sign-pdf") {
-          loadSignThumbnails(samplePdf);
         } else if (toolId === "redact-pdf") {
           loadRedactThumbnail(samplePdf, 1);
         }
@@ -1910,26 +1809,29 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "sign-pdf": {
-            setSignProgress({ percent: 15, message: "Validating signature parameters..." });
-            const activeSigImage =
-              signatureMode === "draw"
-                ? signatureDrawnImage
-                : signatureMode === "upload"
-                ? signatureUploadedImage
-                : undefined;
+            setSignProgress({ percent: 15, message: "Preparing custom signature placements..." });
+
+            if (signStudioConfig.placements.length === 0) {
+              throw new Error("Please click or add at least one signature placement onto the PDF page.");
+            }
+            if (signStudioConfig.mode === "draw" && !signStudioConfig.signatureImage) {
+              throw new Error("Please draw your signature in the Draw pad first, or switch to Type / Upload.");
+            }
+            if (signStudioConfig.mode === "upload" && !signStudioConfig.signatureImage) {
+              throw new Error("Please upload your signature image first, or switch to Draw / Type.");
+            }
 
             const res = await signPdf(file, {
-              signerName: signatureName,
-              signerTitle,
-              signerReason,
-              signatureImage: activeSigImage || undefined,
-              mode: signatureMode,
-              position: signaturePosition,
-              pageScope: signaturePageScope,
-              targetPage: signatureTargetPage,
-              inkColor: signatureInkColor,
-              cursiveStyle: signatureCursiveStyle,
-              includeVerificationBadge: signatureIncludeBadge,
+              signerName: signStudioConfig.signerName,
+              signerTitle: signStudioConfig.signerTitle,
+              signerReason: signStudioConfig.signerReason,
+              signatureImage: signStudioConfig.signatureImage,
+              mode: signStudioConfig.mode,
+              inkColor: signStudioConfig.inkColor,
+              cursiveStyle: signStudioConfig.cursiveStyle,
+              stampStyle: signStudioConfig.stampStyle,
+              includeVerificationBadge: signStudioConfig.stampStyle === "badge",
+              customPlacements: signStudioConfig.placements,
               onProgress: (percent, message) => setSignProgress({ percent, message }),
             });
 
@@ -4188,564 +4090,11 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "sign-pdf" && (
-                  <div className="space-y-4">
-                    {/* Presets Header Bar */}
-                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                          <PenTool className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Digital Signature Presets
-                        </span>
-                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                          5 Verified Layouts
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                        {SIGNATURE_PRESETS.map((preset) => {
-                          const isActive = signatureActivePreset === preset.id;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => {
-                                setSignatureActivePreset(preset.id);
-                                setSignatureMode(preset.mode);
-                                setSignaturePosition(preset.position);
-                                setSignaturePageScope(preset.pageScope);
-                                setSignatureInkColor(preset.inkColor);
-                                setSignatureIncludeBadge(preset.includeBadge);
-                              }}
-                              className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
-                                isActive
-                                  ? "bg-sky-50 dark:bg-sky-950/40 border-sky-400 dark:border-sky-600 shadow-xs"
-                                  : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                              }`}
-                            >
-                              <span className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                                {preset.name}
-                              </span>
-                              <span className="text-[11px] text-zinc-500 font-mono mt-1 truncate">
-                                {preset.position.replace("-", " ")}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* 2-Column Studio: Left Visualizer Canvas, Right Controls */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                      {/* Left: Interactive A4 Document Canvas Preview */}
-                      <div className="lg:col-span-5 flex flex-col items-center p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
-                        <div className="w-full flex items-center justify-between">
-                          <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <BookOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> A4 Signature Canvas
-                          </span>
-                          {/* Page Toggle: Last Page vs Page 1 */}
-                          <div className="flex items-center gap-1 bg-zinc-200/80 dark:bg-zinc-800 p-0.5 rounded-lg">
-                            <button
-                              type="button"
-                              onClick={() => setSignaturePreviewPage("last")}
-                              className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                                signaturePreviewPage === "last"
-                                  ? "bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs"
-                                  : "text-zinc-600 dark:text-zinc-400"
-                              }`}
-                            >
-                              Last Page
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSignaturePreviewPage("first")}
-                              className={`px-2 py-0.5 text-[11px] font-bold rounded-md transition-all cursor-pointer ${
-                                signaturePreviewPage === "first"
-                                  ? "bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white shadow-xs"
-                                  : "text-zinc-600 dark:text-zinc-400"
-                              }`}
-                            >
-                              Page 1
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* A4 Sheet Container */}
-                        {(() => {
-                          const currentThumb = signaturePreviewPage === "last" ? (signThumbnailLast || signThumbnailFirst) : signThumbnailFirst;
-
-                          const isTop = signaturePosition.startsWith("top");
-                          const isBottom = signaturePosition.startsWith("bottom");
-                          const isLeft = signaturePosition.endsWith("left");
-                          const isCenter = signaturePosition.endsWith("center");
-                          const isRight = signaturePosition.endsWith("right");
-
-                          const activeInkClass =
-                            signatureInkColor === "blue"
-                              ? "text-[#002b80] dark:text-[#60a5fa]"
-                              : signatureInkColor === "purple"
-                              ? "text-[#4a0e78] dark:text-[#c084fc]"
-                              : "text-zinc-900 dark:text-zinc-100";
-
-                          const activeCursiveClass =
-                            signatureCursiveStyle === "formal"
-                              ? "font-serif italic"
-                              : signatureCursiveStyle === "bold"
-                              ? "font-sans font-bold italic"
-                              : "font-serif italic font-semibold";
-
-                          return (
-                            <div className="relative w-full max-w-[270px] aspect-[1/1.414] bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-md p-3 overflow-hidden flex flex-col justify-between select-none">
-                              {/* Background page thumbnail or document mockup wireframe */}
-                              {currentThumb ? (
-                                <img
-                                  src={currentThumb}
-                                  alt="Document Page"
-                                  className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-85"
-                                />
-                              ) : (
-                                <div className="absolute inset-0 p-4 space-y-2.5 pointer-events-none opacity-25 dark:opacity-20 flex flex-col justify-between">
-                                  <div className="space-y-1.5">
-                                    <div className="h-3 w-2/5 bg-zinc-500 rounded" />
-                                    <div className="h-1.5 w-full bg-zinc-400 rounded" />
-                                    <div className="h-1.5 w-11/12 bg-zinc-400 rounded" />
-                                    <div className="h-1.5 w-4/5 bg-zinc-400 rounded" />
-                                  </div>
-                                  <div className="space-y-1.5">
-                                    <div className="h-1.5 w-full bg-zinc-400 rounded" />
-                                    <div className="h-1.5 w-5/6 bg-zinc-400 rounded" />
-                                    <div className="h-1.5 w-3/4 bg-zinc-400 rounded" />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="h-1.5 w-full bg-zinc-400 rounded" />
-                                    <div className="h-1.5 w-2/3 bg-zinc-400 rounded" />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Overlaid Signature Placement Block */}
-                              <div
-                                className={`absolute z-10 transition-all duration-200 ${
-                                  isTop ? "top-3" : "bottom-3"
-                                } ${
-                                  isLeft ? "left-3" : isRight ? "right-3" : "left-1/2 -translate-x-1/2"
-                                }`}
-                              >
-                                {signatureIncludeBadge ? (
-                                  /* Certified Certificate Badge Card */
-                                  <div className="w-[145px] rounded-lg border border-sky-300/80 dark:border-sky-700/80 bg-white/95 dark:bg-zinc-950/95 shadow-md overflow-hidden text-left">
-                                    <div className="bg-sky-600 dark:bg-sky-700 text-white px-1.5 py-0.5 flex items-center justify-between text-[11px] font-bold">
-                                      <span className="truncate">VERIFIED SIGNATURE</span>
-                                      <ShieldCheck className="w-2.5 h-2.5 shrink-0" />
-                                    </div>
-                                    <div className="p-1.5 space-y-0.5">
-                                      {signatureMode === "draw" && signatureDrawnImage ? (
-                                        <img
-                                          src={signatureDrawnImage}
-                                          alt="Drawn Signature"
-                                          className="h-5 w-auto object-contain my-0.5"
-                                        />
-                                      ) : signatureMode === "upload" && signatureUploadedImage ? (
-                                        <img
-                                          src={signatureUploadedImage}
-                                          alt="Uploaded Signature"
-                                          className="h-5 w-auto object-contain my-0.5"
-                                        />
-                                      ) : (
-                                        <span className={`text-xs block truncate ${activeInkClass} ${activeCursiveClass}`}>
-                                          {signatureName || "Authorized Signer"}
-                                        </span>
-                                      )}
-                                      <div className="text-[11px] text-zinc-600 dark:text-zinc-400 font-mono leading-none truncate">
-                                        {signerTitle || "Authorized Signatory"}
-                                      </div>
-                                      <div className="text-[11px] text-zinc-500 font-mono leading-none truncate">
-                                        {new Date().toISOString().slice(0, 10)} • SHA-256
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* Minimalist Signature Line */
-                                  <div className="text-center w-[120px]">
-                                    {signatureMode === "draw" && signatureDrawnImage ? (
-                                      <img
-                                        src={signatureDrawnImage}
-                                        alt="Drawn Signature"
-                                        className="h-6 w-auto object-contain mx-auto my-0.5"
-                                      />
-                                    ) : signatureMode === "upload" && signatureUploadedImage ? (
-                                      <img
-                                        src={signatureUploadedImage}
-                                        alt="Uploaded Signature"
-                                        className="h-6 w-auto object-contain mx-auto my-0.5"
-                                      />
-                                    ) : (
-                                      <span className={`text-sm block truncate ${activeInkClass} ${activeCursiveClass}`}>
-                                        {signatureName || "Authorized Signer"}
-                                      </span>
-                                    )}
-                                    <div className="w-full border-t border-zinc-400 dark:border-zinc-500 my-0.5" />
-                                    <span className="text-[11px] font-mono text-zinc-500 truncate block">
-                                      {signatureName}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Readout Summary */}
-                        <div className="w-full text-center pt-2 border-t border-zinc-200/70 dark:border-zinc-800 space-y-0.5">
-                          <p className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300 font-semibold truncate">
-                            {signaturePosition.replace("-", " ")} • {signaturePageScope.replace("_", " ")} • Ink: {signatureInkColor}
-                          </p>
-                          <p className="text-[11px] text-zinc-500 font-mono">
-                            Mode: {signatureMode} • {signatureIncludeBadge ? "Certificate Audit Seal ON" : "Clean Line"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Right: Detailed Configuration Panel */}
-                      <div className="lg:col-span-7 space-y-4">
-                        {/* Creation Mode Switcher: Type vs Draw vs Upload */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                            Signature Creation Method
-                          </label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {[
-                              { id: "type" as const, label: "Type Cursive", icon: Type },
-                              { id: "draw" as const, label: "Draw Freehand", icon: PenTool },
-                              { id: "upload" as const, label: "Upload Image", icon: ImageIcon },
-                            ].map((tab) => {
-                              const Icon = tab.icon;
-                              const isSelected = signatureMode === tab.id;
-                              return (
-                                <button
-                                  key={tab.id}
-                                  type="button"
-                                  onClick={() => setSignatureMode(tab.id)}
-                                  className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                    isSelected
-                                      ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  <Icon className="w-3.5 h-3.5" />
-                                  <span>{tab.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Mode 1: Type Name */}
-                        {signatureMode === "type" && (
-                          <div className="space-y-3 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              <div>
-                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block mb-1">
-                                  Signer Full Name
-                                </label>
-                                <input
-                                  type="text"
-                                  value={signatureName}
-                                  onChange={(e) => setSignatureName(e.target.value)}
-                                  placeholder="Jane Doe"
-                                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-xs font-semibold focus:outline-none focus:border-sky-600"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block mb-1">
-                                  Signer Title / Role
-                                </label>
-                                <input
-                                  type="text"
-                                  value={signerTitle}
-                                  onChange={(e) => setSignerTitle(e.target.value)}
-                                  placeholder="Authorized Signatory"
-                                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white text-xs font-semibold focus:outline-none focus:border-sky-600"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Cursive Styles */}
-                            <div className="space-y-1">
-                              <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                Calligraphic Cursive Font
-                              </label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                {[
-                                  { id: "script" as const, label: "Script", preview: "font-serif italic font-semibold" },
-                                  { id: "formal" as const, label: "Formal", preview: "font-serif italic" },
-                                  { id: "bold" as const, label: "Bold", preview: "font-sans italic font-bold" },
-                                  { id: "modern" as const, label: "Modern", preview: "font-serif italic font-medium" },
-                                ].map((style) => (
-                                  <button
-                                    key={style.id}
-                                    type="button"
-                                    onClick={() => setSignatureCursiveStyle(style.id)}
-                                    className={`py-1.5 px-2 rounded-xl text-left border transition-all cursor-pointer ${
-                                      signatureCursiveStyle === style.id
-                                        ? "bg-sky-50 dark:bg-sky-950/40 border-sky-400 dark:border-sky-600 shadow-xs"
-                                        : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                    }`}
-                                  >
-                                    <span className={`block text-xs truncate ${style.preview} text-zinc-900 dark:text-white`}>
-                                      {signatureName || "Signature"}
-                                    </span>
-                                    <span className="text-[11px] text-zinc-500 font-mono block">
-                                      {style.label}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Mode 2: Draw Signature Canvas */}
-                        {signatureMode === "draw" && (
-                          <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                Draw Signature with Pointer / Stylus
-                              </label>
-                              <button
-                                type="button"
-                                onClick={clearSignatureCanvas}
-                                className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                              >
-                                Clear Signature
-                              </button>
-                            </div>
-                            <div className="relative border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 overflow-hidden touch-none">
-                              <canvas
-                                ref={signatureCanvasRef}
-                                width={480}
-                                height={130}
-                                onPointerDown={startDrawingSig}
-                                onPointerMove={drawSig}
-                                onPointerUp={stopDrawingSig}
-                                onPointerLeave={stopDrawingSig}
-                                className="w-full h-28 cursor-crosshair"
-                              />
-                              <div className="absolute inset-x-6 bottom-5 border-b border-zinc-200 dark:border-zinc-800 pointer-events-none flex items-center justify-between text-[11px] text-zinc-400">
-                                <span>Sign above the line</span>
-                                <span>DocDrop Stylus Engine</span>
-                              </div>
-                            </div>
-                            {signatureDrawnImage && (
-                              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Signature stroke captured successfully
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Mode 3: Upload Image */}
-                        {signatureMode === "upload" && (
-                          <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 block">
-                              Upload Signature Image (PNG / JPG transparent)
-                            </label>
-                            {signatureUploadedImage ? (
-                              <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                                <img
-                                  src={signatureUploadedImage}
-                                  alt="Uploaded Signature"
-                                  className="h-10 object-contain"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setSignatureUploadedImage(null)}
-                                  className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ) : (
-                              <label className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 rounded-xl cursor-pointer bg-white dark:bg-zinc-900 transition-colors">
-                                <ImageIcon className="w-6 h-6 text-zinc-400 mb-1" />
-                                <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                                  Select Signature Image
-                                </span>
-                                <span className="text-[11px] text-zinc-500">Supports transparent PNG signatures</span>
-                                <input
-                                  type="file"
-                                  accept="image/png,image/jpeg"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      const reader = new FileReader();
-                                      reader.onload = (ev) => {
-                                        if (ev.target?.result) {
-                                          setSignatureUploadedImage(ev.target.result as string);
-                                        }
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                />
-                              </label>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Ink Color & Target Page Scope */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                          {/* Ink Color */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Signature Ink Color
-                            </label>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { id: "blue" as const, label: "Navy Blue", dot: "bg-[#002b80]" },
-                                { id: "dark" as const, label: "Formal Black", dot: "bg-[#1a1a1a] dark:bg-zinc-200" },
-                                { id: "purple" as const, label: "Royal Purple", dot: "bg-[#4a0e78]" },
-                              ].map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onClick={() => setSignatureInkColor(c.id)}
-                                  className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                    signatureInkColor === c.id
-                                      ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-                                  <span>{c.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Target Page Scope */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Signing Page Target
-                            </label>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { id: "last_page" as const, label: "Last Page" },
-                                { id: "first_page" as const, label: "First Page" },
-                                { id: "all_pages" as const, label: "All Pages" },
-                              ].map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => setSignaturePageScope(p.id)}
-                                  className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all text-center cursor-pointer ${
-                                    signaturePageScope === p.id
-                                      ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  {p.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 6-Grid Placement Anchor */}
-                        <div className="space-y-1.5 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Signature Block Placement
-                            </label>
-                            <span className="text-[11px] font-mono text-zinc-500">
-                              Selected: {signaturePosition.replace("-", " ")}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            {[
-                              { pos: "bottom-left" as const, label: "Bottom Left" },
-                              { pos: "bottom-center" as const, label: "Bottom Center" },
-                              { pos: "bottom-right" as const, label: "Bottom Right" },
-                              { pos: "top-left" as const, label: "Top Left" },
-                              { pos: "top-center" as const, label: "Top Center" },
-                              { pos: "top-right" as const, label: "Top Right" },
-                            ].map((p) => {
-                              const isSelected = signaturePosition === p.pos;
-                              return (
-                                <button
-                                  key={p.pos}
-                                  type="button"
-                                  onClick={() => setSignaturePosition(p.pos)}
-                                  className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
-                                    isSelected
-                                      ? "bg-sky-600 text-white border-sky-600 shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  {p.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Verification Seal & Legal Reason */}
-                        <div className="space-y-2 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                          <label className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between cursor-pointer hover:border-zinc-300 transition-colors">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={signatureIncludeBadge}
-                                onChange={(e) => setSignatureIncludeBadge(e.target.checked)}
-                                className="rounded text-sky-600 focus:ring-sky-500"
-                              />
-                              <div>
-                                <span className="text-xs font-bold text-zinc-900 dark:text-white block">
-                                  Include Certified Digital Audit Box (SHA-256 + Timestamp)
-                                </span>
-                                <span className="text-[11px] text-zinc-500 block">
-                                  Encloses signature in legal verification card with ISO 32000 metadata.
-                                </span>
-                              </div>
-                            </div>
-                            <span className="text-[11px] font-mono font-bold text-sky-600 dark:text-sky-400">
-                              ISO 32000
-                            </span>
-                          </label>
-
-                          {signatureIncludeBadge && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 block mb-0.5">
-                                  Signing Reason
-                                </label>
-                                <select
-                                  value={signerReason}
-                                  onChange={(e) => setSignerReason(e.target.value)}
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs font-semibold text-zinc-900 dark:text-white focus:outline-none"
-                                >
-                                  <option value="Approved & Accepted">Approved & Accepted</option>
-                                  <option value="Reviewed & Formally Verified">Reviewed & Formally Verified</option>
-                                  <option value="Authorized Corporate Sign-Off">Authorized Corporate Sign-Off</option>
-                                  <option value="Acknowledged & Received">Acknowledged & Received</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 block mb-0.5">
-                                  Signing Location / Capacity
-                                </label>
-                                <input
-                                  type="text"
-                                  value={signerTitle}
-                                  onChange={(e) => setSignerTitle(e.target.value)}
-                                  placeholder="Authorized Signatory"
-                                  className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs font-medium text-zinc-900 dark:text-white focus:outline-none"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <SignPdfStudio
+                    file={file}
+                    value={signStudioConfig}
+                    onChange={setSignStudioConfig}
+                  />
                 )}
 
                 {toolId === "redact-pdf" && (
