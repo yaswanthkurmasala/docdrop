@@ -459,7 +459,7 @@ export function CheckoutModal({
                         required
                         value={licenseKey}
                         onChange={(e) => setLicenseKey(e.target.value)}
-                        placeholder="e.g. dd_179558... or PRO-KEY-2026"
+                        placeholder="e.g. dd_179558... or your license key"
                         className="w-full h-10.5 pl-10 pr-20 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm font-mono tracking-wide text-zinc-950 dark:text-white placeholder:font-sans placeholder:tracking-normal placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
                       />
                       <button
@@ -503,21 +503,13 @@ export function CheckoutModal({
                       </div>
                     </div>
 
-                    {process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT?.toLowerCase() !== "production" && (
-                      <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px]">
-                        <span className="text-zinc-500 dark:text-zinc-400">Sandbox demo key:</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLicenseKey("DEMO-PRO-2026");
-                            setStatus(null);
-                          }}
-                          className="font-mono font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/25 transition-colors cursor-pointer"
-                        >
-                          Fill DEMO-PRO-2026
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-medium">
+                        <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Synced to browser &amp; account</span>
+                      </span>
+                      <span>Check email receipt</span>
+                    </div>
                   </div>
 
                   <motion.button
