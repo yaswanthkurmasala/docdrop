@@ -19,6 +19,7 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
+  ClipboardPaste,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { useAuth } from "@/context/AuthContext";
@@ -447,8 +448,9 @@ export function CheckoutModal({
               ) : (
                 <form onSubmit={handleActivateLicense} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                      License Key
+                    <label className="flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                      <span>License Key or Cashfree Order ID</span>
+                      <span className="text-[11px] font-normal text-zinc-400 font-mono">Instant unlock</span>
                     </label>
                     <div className="relative">
                       <Key className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -457,22 +459,73 @@ export function CheckoutModal({
                         required
                         value={licenseKey}
                         onChange={(e) => setLicenseKey(e.target.value)}
-                        placeholder="e.g. DEMO-PRO-2026"
-                        className="w-full h-10.5 pl-10 pr-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm font-mono uppercase tracking-wider text-zinc-950 dark:text-white placeholder:normal-case placeholder:tracking-normal placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
+                        placeholder="e.g. dd_179558... or PRO-KEY-2026"
+                        className="w-full h-10.5 pl-10 pr-20 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm font-mono tracking-wide text-zinc-950 dark:text-white placeholder:font-sans placeholder:tracking-normal placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
                       />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const clip = await navigator.clipboard.readText();
+                            if (clip) setLicenseKey(clip.trim());
+                          } catch {
+                            setStatus("Press Ctrl+V (or Cmd+V) to paste your key.");
+                          }
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors cursor-pointer shadow-2xs"
+                        title="Paste from clipboard"
+                      >
+                        <ClipboardPaste className="w-3 h-3" />
+                        <span>Paste</span>
+                      </button>
                     </div>
-                    <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Sandbox test key:{" "}
-                      <code className="font-mono bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200">
-                        DEMO-PRO-2026
-                      </code>
-                    </p>
                   </div>
 
-                  <button
+                  {/* Structured Activation Info Card */}
+                  <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/90 space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        Supported Formats
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Server Verified
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                      <div className="p-2 rounded-lg bg-white dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/70">
+                        <span className="block font-semibold text-zinc-800 dark:text-zinc-200">Pro License Key</span>
+                        <span className="font-mono text-zinc-500 dark:text-zinc-400">Issued via email</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-white dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/70">
+                        <span className="block font-semibold text-zinc-800 dark:text-zinc-200">Receipt Order ID</span>
+                        <span className="font-mono text-zinc-500 dark:text-zinc-400">dd_... / docdrop_...</span>
+                      </div>
+                    </div>
+
+                    {process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT?.toLowerCase() !== "production" && (
+                      <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px]">
+                        <span className="text-zinc-500 dark:text-zinc-400">Sandbox demo key:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLicenseKey("DEMO-PRO-2026");
+                            setStatus(null);
+                          }}
+                          className="font-mono font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-500/25 transition-colors cursor-pointer"
+                        >
+                          Fill DEMO-PRO-2026
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <motion.button
+                    whileHover={isLoading ? undefined : { scale: 1.01 }}
+                    whileTap={isLoading ? undefined : { scale: 0.98 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full h-11 flex items-center justify-center gap-2 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold px-4 rounded-xl shadow-xs transition-colors cursor-pointer text-xs sm:text-sm disabled:opacity-60"
+                    className="w-full h-11 flex items-center justify-center gap-2 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold px-4 rounded-xl shadow-md transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
                       <>
@@ -483,9 +536,10 @@ export function CheckoutModal({
                       <>
                         <ShieldCheck className="w-4 h-4" />
                         <span>Verify &amp; Activate Pro</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </form>
               )}
 
