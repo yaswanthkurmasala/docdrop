@@ -169,32 +169,130 @@ function renderTypedSignatureToPng(
 }
 
 /**
- * Strips bright white paper background from uploaded camera photos of signatures
+ * Adaptive local-illumination background remover (handles uneven shadows, grey/blue indoor paper photos).
+ * Uses an O(W*H) integral image to compare each pixel against its surrounding neighborhood brightness.
  */
-async function removeWhiteBackground(dataUrl: string): Promise<string> {
+async function removePaperBackground(
+  dataUrl: string,
+  sensitivity: number = 50,
+  recolorHex?: string | null
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new window.Image();
     img.onload = () => {
+      // Scale down very large camera photos cleanly for fast crisp output
+      const maxDim = 1200;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) return resolve(dataUrl);
 
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
+      const totalPixels = w * h;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // Luminance threshold for light paper backgrounds
-        const brightness = (r + g + b) / 3;
-        if (brightness > 215 && Math.max(r, g, b) - Math.min(r, g, b) < 30) {
-          data[i + 3] = 0;
+      // Preserve images that already contain a true alpha channel
+      let transparentCount = 0;
+      for (let i = 0; i < totalPixels; i++) {
+        if (data[i * 4 + 3] < 235) transparentCount++;
+      }
+      if (transparentCount > totalPixels * 0.05) {
+        return resolve(exportTrimmedCanvasPng(canvas) || canvas.toDataURL("image/png"));
+      }
+
+      // 1. Compute luminance array
+      const lum = new Float32Array(totalPixels);
+      for (let i = 0; i < totalPixels; i++) {
+        const idx = i * 4;
+        lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+      }
+
+      // 2. Build prefix sum (integral image) over (w+1) x (h+1) for O(1) window means
+      const stride = w + 1;
+      const integral = new Float64Array(stride * (h + 1));
+      for (let y = 0; y < h; y++) {
+        let rowSum = 0;
+        const lumRow = y * w;
+        const intRow = (y + 1) * stride;
+        const prevRow = y * stride;
+        for (let x = 0; x < w; x++) {
+          rowSum += lum[lumRow + x];
+          integral[intRow + x + 1] = integral[prevRow + x + 1] + rowSum;
         }
       }
+
+      // Window radius ~8% of smallest dimension (adapts to shadows while staying larger than pen strokes)
+      const radius = Math.max(14, Math.min(48, Math.round(Math.min(w, h) * 0.08)));
+
+      // Map sensitivity (10..90) -> required darkness delta below local paper brightness
+      // Higher sensitivity picks up lighter pen strokes (lower threshold)
+      const minDelta = Math.max(8, Math.round(42 - sensitivity * 0.36));
+      const fullInkDelta = minDelta + 16;
+
+      let tintR = 20;
+      let tintG = 24;
+      let tintB = 34;
+      if (recolorHex && /^#[0-9a-fA-F]{6}$/.test(recolorHex)) {
+        tintR = parseInt(recolorHex.slice(1, 3), 16);
+        tintG = parseInt(recolorHex.slice(3, 5), 16);
+        tintB = parseInt(recolorHex.slice(5, 7), 16);
+      }
+
+      // 3. Threshold each pixel relative to its local paper neighborhood
+      for (let y = 0; y < h; y++) {
+        const y0 = Math.max(0, y - radius);
+        const y1 = Math.min(h - 1, y + radius);
+        const rOffset0 = y0 * stride;
+        const rOffset1 = (y1 + 1) * stride;
+
+        for (let x = 0; x < w; x++) {
+          const x0 = Math.max(0, x - radius);
+          const x1 = Math.min(w - 1, x + radius);
+          const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+
+          const sum =
+            integral[rOffset1 + x1 + 1] -
+            integral[rOffset0 + x1 + 1] -
+            integral[rOffset1 + x0] +
+            integral[rOffset0 + x0];
+          const localPaperBg = sum / area;
+
+          const pIdx = y * w + x;
+          const delta = localPaperBg - lum[pIdx];
+          const rgbaIdx = pIdx * 4;
+
+          if (delta <= minDelta) {
+            data[rgbaIdx + 3] = 0;
+          } else if (delta < fullInkDelta) {
+            const t = (delta - minDelta) / (fullInkDelta - minDelta);
+            data[rgbaIdx + 3] = Math.round(t * 255);
+            if (recolorHex) {
+              data[rgbaIdx] = tintR;
+              data[rgbaIdx + 1] = tintG;
+              data[rgbaIdx + 2] = tintB;
+            }
+          } else {
+            data[rgbaIdx + 3] = 255;
+            if (recolorHex) {
+              data[rgbaIdx] = tintR;
+              data[rgbaIdx + 1] = tintG;
+              data[rgbaIdx + 2] = tintB;
+            } else {
+              // Subtle contrast boost so faint ballpoint ink reads crisply
+              data[rgbaIdx] = Math.max(0, Math.round(data[rgbaIdx] * 0.72));
+              data[rgbaIdx + 1] = Math.max(0, Math.round(data[rgbaIdx + 1] * 0.72));
+              data[rgbaIdx + 2] = Math.max(0, Math.round(data[rgbaIdx + 2] * 0.72));
+            }
+          }
+        }
+      }
+
       ctx.putImageData(imageData, 0, 0);
       resolve(exportTrimmedCanvasPng(canvas) || canvas.toDataURL("image/png"));
     };
@@ -222,8 +320,11 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
   const isDrawingRef = useRef(false);
   const [strokeThickness, setStrokeThickness] = useState<number>(3);
   const [drawnDataUrl, setDrawnDataUrl] = useState<string | null>(null);
+  const [rawUploadedDataUrl, setRawUploadedDataUrl] = useState<string | null>(null);
   const [uploadedDataUrl, setUploadedDataUrl] = useState<string | null>(null);
   const [removeBgEnabled, setRemoveBgEnabled] = useState(true);
+  const [bgSensitivity, setBgSensitivity] = useState<number>(52);
+  const [recolorUploadedInk, setRecolorUploadedInk] = useState<boolean>(false);
 
   // Interactive Drag & Resize state on PDF Canvas
   const pageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -249,6 +350,29 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
       inkHex
     );
   }, [value.mode, value.signerName, value.cursiveStyle, inkHex]);
+
+  // Reactively clean uploaded photo whenever toggle, sensitivity, or ink color changes
+  useEffect(() => {
+    let cancelled = false;
+    if (!rawUploadedDataUrl) {
+      setUploadedDataUrl(null);
+      return;
+    }
+    if (!removeBgEnabled) {
+      setUploadedDataUrl(rawUploadedDataUrl);
+      return;
+    }
+    removePaperBackground(
+      rawUploadedDataUrl,
+      bgSensitivity,
+      recolorUploadedInk ? inkHex : null
+    ).then((cleaned) => {
+      if (!cancelled) setUploadedDataUrl(cleaned);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rawUploadedDataUrl, removeBgEnabled, bgSensitivity, recolorUploadedInk, inkHex]);
 
   // Keep parent `signatureImage` synchronized with active mode
   useEffect(() => {
@@ -1098,30 +1222,72 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
             {/* Upload Mode */}
             {value.mode === "upload" && (
               <div className="space-y-2.5 pt-1">
-                <label className="flex items-center justify-between text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 cursor-pointer">
-                  <span className="flex items-center gap-1.5">
-                    <Wand2 className="w-3.5 h-3.5 text-amber-500" />
-                    Auto-remove white paper background
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={removeBgEnabled}
-                    onChange={(e) => setRemoveBgEnabled(e.target.checked)}
-                    className="rounded accent-sky-600"
-                  />
-                </label>
+                <div className="space-y-2 p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                  <label className="flex items-center justify-between text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                    <span className="flex items-center gap-1.5">
+                      <Wand2 className="w-3.5 h-3.5 text-amber-500" />
+                      Auto-remove paper background
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={removeBgEnabled}
+                      onChange={(e) => setRemoveBgEnabled(e.target.checked)}
+                      className="rounded accent-sky-600 cursor-pointer"
+                    />
+                  </label>
+
+                  {removeBgEnabled && (
+                    <div className="space-y-1.5 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-zinc-500 dark:text-zinc-400 font-medium">
+                          Ink Pickup Sensitivity:
+                        </span>
+                        <input
+                          type="range"
+                          min={15}
+                          max={85}
+                          step={2}
+                          value={bgSensitivity}
+                          onChange={(e) => setBgSensitivity(Number(e.target.value))}
+                          className="w-28 accent-amber-500 cursor-pointer"
+                        />
+                      </div>
+                      <label className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-zinc-400 cursor-pointer">
+                        <span>Recolor ink to selected pen color</span>
+                        <input
+                          type="checkbox"
+                          checked={recolorUploadedInk}
+                          onChange={(e) => setRecolorUploadedInk(e.target.checked)}
+                          className="rounded accent-sky-600 cursor-pointer"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
 
                 {uploadedDataUrl ? (
-                  <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white">
+                  <div
+                    className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-700"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(45deg, #f4f4f5 25%, transparent 25%), linear-gradient(-45deg, #f4f4f5 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #f4f4f5 75%), linear-gradient(-45deg, transparent 75%, #f4f4f5 75%)",
+                      backgroundSize: "14px 14px",
+                      backgroundPosition: "0 0, 0 7px, 7px -7px, -7px 0",
+                      backgroundColor: "#ffffff",
+                    }}
+                  >
                     <img
                       src={uploadedDataUrl}
                       alt="Uploaded Signature"
-                      className="h-12 max-w-[180px] object-contain"
+                      className="h-14 max-w-[200px] object-contain"
                     />
                     <button
                       type="button"
-                      onClick={() => setUploadedDataUrl(null)}
-                      className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
+                      onClick={() => {
+                        setRawUploadedDataUrl(null);
+                        setUploadedDataUrl(null);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white/95 border border-rose-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer shadow-2xs"
                     >
                       Replace
                     </button>
@@ -1133,7 +1299,7 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
                       Upload Signature Photo / PNG
                     </span>
                     <span className="text-[11px] text-zinc-500">
-                      Paper photos auto-converted to transparent ink
+                      Indoor/shadowed paper auto-converted to transparent ink
                     </span>
                     <input
                       type="file"
@@ -1143,13 +1309,9 @@ export function SignPdfStudio({ file, value, onChange }: SignPdfStudioProps) {
                         const imgFile = e.target.files?.[0];
                         if (!imgFile) return;
                         const reader = new FileReader();
-                        reader.onload = async (ev) => {
+                        reader.onload = (ev) => {
                           const raw = ev.target?.result as string;
-                          if (!raw) return;
-                          const cleaned = removeBgEnabled
-                            ? await removeWhiteBackground(raw)
-                            : raw;
-                          setUploadedDataUrl(cleaned);
+                          if (raw) setRawUploadedDataUrl(raw);
                         };
                         reader.readAsDataURL(imgFile);
                       }}
