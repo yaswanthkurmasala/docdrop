@@ -418,55 +418,76 @@ export function Header({
 
           {/* Action Buttons & Auth (Perfect vertical alignment) */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* 3-State Theme Switcher: System (Default), Light, Dark - Only Icons */}
+            {/* 3-State Theme Switcher: System (Default), Light, Dark - Animated Pill & Origin Reveal */}
             <div
-              className="inline-flex items-center p-0.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs"
+              className="relative isolate inline-flex items-center p-0.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs"
               role="group"
               aria-label="Color theme switcher"
             >
               {/* System Theme (Default) */}
               <button
                 type="button"
-                onClick={() => setThemeMode("system")}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                onClick={(e) => setThemeMode("system", { x: e.clientX, y: e.clientY })}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer relative ${
                   themeMode === "system"
-                    ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-2xs"
+                    ? "text-white dark:text-zinc-950"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="System (Default)"
                 aria-label="System theme (Default)"
               >
-                <Monitor className="w-3.5 h-3.5" />
+                {themeMode === "system" && (
+                  <motion.span
+                    layoutId="themeSwitcherPill"
+                    transition={motionTokens.spring.snappy}
+                    className="absolute inset-0 rounded-lg bg-zinc-950 dark:bg-white shadow-2xs -z-10"
+                  />
+                )}
+                <Monitor className="w-3.5 h-3.5 relative z-10" />
               </button>
 
               {/* Light Mode */}
               <button
                 type="button"
-                onClick={() => setThemeMode("light")}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                onClick={(e) => setThemeMode("light", { x: e.clientX, y: e.clientY })}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer relative ${
                   themeMode === "light"
-                    ? "bg-amber-500 text-white shadow-2xs"
+                    ? "text-white"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Light Mode"
                 aria-label="Light mode"
               >
-                <Sun className="w-3.5 h-3.5" />
+                {themeMode === "light" && (
+                  <motion.span
+                    layoutId="themeSwitcherPill"
+                    transition={motionTokens.spring.snappy}
+                    className="absolute inset-0 rounded-lg bg-amber-500 shadow-2xs -z-10"
+                  />
+                )}
+                <Sun className="w-3.5 h-3.5 relative z-10" />
               </button>
 
               {/* Dark Mode */}
               <button
                 type="button"
-                onClick={() => setThemeMode("dark")}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer relative ${
+                onClick={(e) => setThemeMode("dark", { x: e.clientX, y: e.clientY })}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer relative ${
                   themeMode === "dark"
-                    ? "bg-zinc-950 dark:bg-zinc-800 text-indigo-400 shadow-2xs"
+                    ? "text-indigo-300"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
                 }`}
                 title="Dark Mode"
                 aria-label="Dark mode"
               >
-                <Moon className="w-3.5 h-3.5" />
+                {themeMode === "dark" && (
+                  <motion.span
+                    layoutId="themeSwitcherPill"
+                    transition={motionTokens.spring.snappy}
+                    className="absolute inset-0 rounded-lg bg-zinc-900 dark:bg-zinc-800 border border-zinc-700/60 shadow-2xs -z-10"
+                  />
+                )}
+                <Moon className="w-3.5 h-3.5 relative z-10" />
               </button>
             </div>
 

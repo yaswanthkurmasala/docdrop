@@ -1,17 +1,22 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { flushSync } from "react-dom";
 
 export type ThemeMode = "system" | "dark" | "light";
 export type ResolvedTheme = "dark" | "light";
+export interface ThemeTransitionOrigin {
+  x: number;
+  y: number;
+}
 
 interface ThemeContextType {
   themeMode: ThemeMode;
   theme: ResolvedTheme;
   resolvedTheme: ResolvedTheme;
-  setThemeMode: (mode: ThemeMode) => void;
-  setTheme: (mode: ThemeMode) => void;
-  toggleTheme: () => void;
+  setThemeMode: (mode: ThemeMode, origin?: ThemeTransitionOrigin) => void;
+  setTheme: (mode: ThemeMode, origin?: ThemeTransitionOrigin) => void;
+  toggleTheme: (origin?: ThemeTransitionOrigin) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -26,7 +31,6 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
-  const [mounted, setMounted] = useState(false);
 
   const getSystemTheme = (): ResolvedTheme => {
     if (typeof window === "undefined") return "light";
@@ -44,9 +48,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Initialize on mount
+  // Initialize from localStorage + subscribe to OS theme changes
   useEffect(() => {
-    setMounted(true);
     let initialMode: ThemeMode = "system";
     try {
       const stored = localStorage.getItem("docdrop_theme") || localStorage.getItem("doctomd_theme");
@@ -56,11 +59,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     const resolved = initialMode === "system" ? getSystemTheme() : initialMode;
-    setThemeModeState(initialMode);
-    setResolvedTheme(resolved);
+    queueMicrotask(() => {
+      setThemeModeState(initialMode);
+      setResolvedTheme(resolved);
+    });
     applyThemeToDom(resolved);
 
-    // Listen for OS system theme changes
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSystemChange = (e: MediaQueryListEvent) => {
       try {
@@ -77,19 +81,83 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mediaQuery.removeEventListener("change", handleSystemChange);
   }, [applyThemeToDom]);
 
-  const setThemeMode = (mode: ThemeMode) => {
-    setThemeModeState(mode);
-    const resolved = mode === "system" ? getSystemTheme() : mode;
-    setResolvedTheme(resolved);
-    applyThemeToDom(resolved);
+  const setThemeMode = (mode: ThemeMode, origin?: ThemeTransitionOrigin) => {
+    const nextResolved = mode === "system" ? getSystemTheme() : mode;
+
     try {
       localStorage.setItem("docdrop_theme", mode);
     } catch {}
+
+    const commitTheme = () => {
+      setThemeModeState(mode);
+      setResolvedTheme(nextResolved);
+      applyThemeToDom(nextResolved);
+    };
+
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      commitTheme();
+      return;
+    }
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isVisualChange = nextResolved !== resolvedTheme;
+    const docWithVT = document as Document & {
+      startViewTransition?: (cb: () => void) => { ready: Promise<void> };
+    };
+
+    if (!reducedMotion && isVisualChange && typeof docWithVT.startViewTransition === "function") {
+      const x = origin?.x ?? window.innerWidth - 140;
+      const y = origin?.y ?? 32;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+
+      try {
+        const transition = docWithVT.startViewTransition(() => {
+          flushSync(commitTheme);
+        });
+
+        transition.ready
+          .then(() => {
+            document.documentElement.animate(
+              {
+                clipPath: [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                ],
+              },
+              {
+                duration: 420,
+                easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+                pseudoElement: "::view-transition-new(root)",
+              }
+            );
+          })
+          .catch(() => {});
+        return;
+      } catch {
+        // Fallback below
+      }
+    }
+
+    // Fallback synchronized CSS transition for browsers without View Transitions API
+    if (!reducedMotion && isVisualChange) {
+      const root = document.documentElement;
+      root.classList.add("theme-transitioning");
+      commitTheme();
+      window.setTimeout(() => {
+        root.classList.remove("theme-transitioning");
+      }, 320);
+      return;
+    }
+
+    commitTheme();
   };
 
-  const toggleTheme = () => {
+  const toggleTheme = (origin?: ThemeTransitionOrigin) => {
     const next: ThemeMode = resolvedTheme === "dark" ? "light" : "dark";
-    setThemeMode(next);
+    setThemeMode(next, origin);
   };
 
   return (
