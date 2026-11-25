@@ -10,9 +10,15 @@ import {
   CreditCard,
   ShieldCheck,
   Loader2,
-  CheckCircle2,
-  QrCode,
+  Mail,
   Smartphone,
+  Lock,
+  Check,
+  Building2,
+  QrCode,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { useAuth } from "@/context/AuthContext";
@@ -23,6 +29,15 @@ interface CheckoutModalProps {
   onClose: () => void;
   selectedPlan: { name: string; price: string } | null;
   onUnlockPro: () => void;
+}
+
+function getPlanBillingLabel(planName: string): string {
+  const lower = planName.toLowerCase();
+  if (lower.includes("lifetime")) return "One-time • Lifetime access";
+  if (lower.includes("annual") || lower.includes("year")) return "Annual pass • Save 58%";
+  if (lower.includes("month")) return "Monthly pass • Cancel anytime";
+  if (lower.includes("license")) return "Direct license activation";
+  return "One-time • 48-hour unlimited pass";
 }
 
 export function CheckoutModal({
@@ -44,6 +59,17 @@ export function CheckoutModal({
   const planName = selectedPlan?.name || "Quick Pass (48h)";
   const planPrice = selectedPlan?.price || "₹49";
   const { amount: inrAmount, display: inrDisplay } = resolvePlanAmountInr(planName, planPrice);
+  const showAltPrice = planPrice.trim() !== inrDisplay;
+  const billingLabel = getPlanBillingLabel(planName);
+
+  const isSuccessStatus =
+    status?.toLowerCase().includes("unlocked") || status?.toLowerCase().includes("verified");
+  const isErrorStatus =
+    status &&
+    !isSuccessStatus &&
+    !status.toLowerCase().includes("initializing") &&
+    !status.toLowerCase().includes("opening") &&
+    !status.toLowerCase().includes("verifying");
 
   const handleCashfreePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +125,7 @@ export function CheckoutModal({
           paymentSessionId: data.paymentSessionId,
           redirectTarget: "_modal",
         })
-        .then(async (result: any) => {
+        .then(async (result: { error?: { message?: string }; paymentDetails?: unknown }) => {
           if (result.error) {
             console.warn("Cashfree checkout notice:", result.error);
             setStatus(result.error.message || "Payment window closed.");
@@ -141,14 +167,15 @@ export function CheckoutModal({
           }
           setIsLoading(false);
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
           console.error("Cashfree SDK modal error:", err);
           setStatus("Could not open payment window. Please try again.");
           setIsLoading(false);
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Payment error:", err);
-      setStatus(err?.message || "Failed to connect to Cashfree payment gateway.");
+      const message = err instanceof Error ? err.message : "Failed to connect to Cashfree payment gateway.";
+      setStatus(message);
       setIsLoading(false);
     }
   };
@@ -204,195 +231,285 @@ export function CheckoutModal({
             exit={{ opacity: 0 }}
             transition={{ duration: motionTokens.duration.fast }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
 
           {/* Modal Card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={motionTokens.spring.snappy}
-            className="relative z-10 w-full max-w-md rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6 sm:p-7 overflow-hidden text-zinc-900 dark:text-zinc-100 font-sans"
+            className="relative z-10 w-full max-w-[440px] rounded-3xl bg-white dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800/90 shadow-[0_24px_70px_-15px_rgba(0,0,0,0.45)] overflow-hidden text-zinc-900 dark:text-zinc-100 font-sans"
           >
-            {/* Close Button */}
-            <button
-              onClick={onClose}
-              className="absolute top-5 right-5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* Subtle Top Accent Hairline */}
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" />
 
-            {/* Header */}
-            <div className="mb-5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Instant Pro Activation</span>
-              </div>
-              <h3 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                Unlock {planName}
-              </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
-                <span>
-                  Total:{" "}
-                  <strong className="text-sm font-extrabold text-zinc-950 dark:text-white">
-                    ₹{inrAmount}
-                  </strong>{" "}
-                  <span className="text-[11px] text-zinc-400 font-mono">({planPrice})</span>
-                </span>
-                <span>•</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">One-time payment</span>
-              </p>
-            </div>
-
-            {/* Tab switch */}
-            <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-5 text-xs font-semibold relative">
+            <div className="p-6 sm:p-7">
+              {/* Close Button */}
               <button
-                onClick={() => {
-                  setActiveTab("checkout");
-                  setStatus(null);
-                }}
-                className={`relative pb-3 px-3 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === "checkout"
-                    ? "text-zinc-950 dark:text-white font-bold"
-                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-                }`}
+                type="button"
+                onClick={onClose}
+                aria-label="Close checkout"
+                className="absolute top-5 right-5 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
               >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Cashfree Checkout</span>
-                {activeTab === "checkout" && (
-                  <motion.div
-                    layoutId="modalTabHighlight"
-                    transition={motionTokens.spring.snappy}
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"
-                  />
-                )}
+                <X className="w-4 h-4" />
               </button>
 
-              <button
-                onClick={() => {
-                  setActiveTab("license");
-                  setStatus(null);
-                }}
-                className={`relative pb-3 px-3 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === "license"
-                    ? "text-zinc-950 dark:text-white font-bold"
-                    : "text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-                }`}
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>Have a Key?</span>
-                {activeTab === "license" && (
-                  <motion.div
-                    layoutId="modalTabHighlight"
-                    transition={motionTokens.spring.snappy}
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"
-                  />
-                )}
-              </button>
-            </div>
-
-            {activeTab === "checkout" ? (
-              <form onSubmit={handleCashfreePayment} className="space-y-4">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 pr-8">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Email Address (for receipt & Pro pass):
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
-                    <span>Mobile Number (for UPI & SMS):</span>
-                    <span className="text-[11px] text-zinc-400 font-normal">Optional</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 9876543210"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                </div>
-
-                {/* Supported Payment Instruments */}
-                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-zinc-900 dark:text-white">Supported Payment Modes</span>
-                    <span className="text-amber-600 dark:text-amber-400 font-bold font-mono">₹{inrAmount} INR</span>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 mb-2">
+                    <Sparkles className="w-3 h-3" />
+                    <span>Instant Pro Activation</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-600 dark:text-zinc-400">
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">UPI / QR</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">Google Pay</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">PhonePe</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">RuPay</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">Cards</span>
-                    <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 font-medium">NetBanking</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-1 border-t border-zinc-200/60 dark:border-zinc-700/60">
-                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                    <span>256-Bit Encrypted • Powered by Cashfree Payments</span>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold py-3 px-4 rounded-xl shadow-md shadow-amber-500/20 transition-all cursor-pointer text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Connecting to Cashfree...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" />
-                      <span>Pay ₹{inrAmount} & Unlock Instantly</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleActivateLicense} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Enter your License Key:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={licenseKey}
-                    onChange={(e) => setLicenseKey(e.target.value)}
-                    placeholder="e.g. DEMO-PRO-2026"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 text-sm font-mono text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-amber-500 transition-colors"
-                  />
-                  <p className="mt-2 text-[11px] text-zinc-500">
-                    Tip: Enter <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">DEMO-PRO-2026</code> to test instant activation!
+                  <h3 className="text-xl font-extrabold tracking-tight text-zinc-950 dark:text-white leading-tight">
+                    Unlock {planName}
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    {billingLabel}
                   </p>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold py-3 px-4 rounded-xl shadow-xs transition-colors cursor-pointer text-xs"
-                >
-                  Verify & Unlock
-                </button>
-              </form>
-            )}
+                <div className="text-right shrink-0 pt-5">
+                  <div className="text-2xl font-black tracking-tight text-zinc-950 dark:text-white font-mono tabular-nums">
+                    ₹{inrAmount}
+                  </div>
+                  {showAltPrice && (
+                    <div className="text-[11px] text-zinc-400 font-mono">
+                      ({planPrice})
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            {status && (
-              <p className="mt-3.5 text-xs text-center font-medium text-zinc-700 dark:text-zinc-300 animate-in fade-in">
-                {status}
-              </p>
-            )}
+              {/* Compact Included Benefits Strip */}
+              <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/70 border border-zinc-200/70 dark:border-zinc-800/80 text-[11px] text-zinc-600 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+                  <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                  500 MB / 1,000 pages
+                </span>
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span className="inline-flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+                  <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                  All 33 Pro tools
+                </span>
+                <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                <span className="inline-flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+                  <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                  Batch ZIP
+                </span>
+              </div>
+
+              {/* Segmented Tab Switcher */}
+              <div className="relative isolate grid grid-cols-2 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 my-5 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("checkout");
+                    setStatus(null);
+                  }}
+                  className={`relative py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeTab === "checkout"
+                      ? "text-zinc-950 dark:text-white font-bold"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  {activeTab === "checkout" && (
+                    <motion.div
+                      layoutId="modalTabHighlight"
+                      transition={motionTokens.spring.snappy}
+                      className="absolute inset-0 bg-white dark:bg-zinc-800 rounded-lg shadow-xs border border-zinc-200/60 dark:border-zinc-700/70 -z-10"
+                    />
+                  )}
+                  <CreditCard className="w-3.5 h-3.5" />
+                  <span>Instant Pay</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("license");
+                    setStatus(null);
+                  }}
+                  className={`relative py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                    activeTab === "license"
+                      ? "text-zinc-950 dark:text-white font-bold"
+                      : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  {activeTab === "license" && (
+                    <motion.div
+                      layoutId="modalTabHighlight"
+                      transition={motionTokens.spring.snappy}
+                      className="absolute inset-0 bg-white dark:bg-zinc-800 rounded-lg shadow-xs border border-zinc-200/60 dark:border-zinc-700/70 -z-10"
+                    />
+                  )}
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Have a License Key?</span>
+                </button>
+              </div>
+
+              {activeTab === "checkout" ? (
+                <form onSubmit={handleCashfreePayment} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                      Email Address <span className="font-normal text-zinc-400">(for receipt &amp; license)</span>
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="w-full h-10.5 pl-10 pr-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center justify-between text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                      <span>Mobile Number <span className="font-normal text-zinc-400">(for UPI &amp; SMS)</span></span>
+                      <span className="text-[11px] font-normal text-zinc-400">Optional</span>
+                    </label>
+                    <div className="relative">
+                      <Smartphone className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="e.g. 9876543210"
+                        className="w-full h-10.5 pl-10 pr-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm text-zinc-950 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Clean Structured Payment Summary & Supported Instruments */}
+                  <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/90 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        Payment Summary
+                      </span>
+                      <span className="font-mono font-bold text-zinc-950 dark:text-white tabular-nums">
+                        Total: ₹{inrAmount} INR
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-[11px] text-zinc-700 dark:text-zinc-300">
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/70 font-medium">
+                        <QrCode className="w-3 h-3 text-emerald-500 shrink-0" />
+                        <span className="truncate">UPI / GPay</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/70 font-medium">
+                        <CreditCard className="w-3 h-3 text-amber-500 shrink-0" />
+                        <span className="truncate">Cards / RuPay</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white dark:bg-zinc-800/80 border border-zinc-200/70 dark:border-zinc-700/70 font-medium">
+                        <Building2 className="w-3 h-3 text-sky-500 shrink-0" />
+                        <span className="truncate">NetBanking</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400 font-medium pt-2 border-t border-zinc-200/60 dark:border-zinc-800">
+                      <span className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                        <span>256-Bit SSL Encrypted</span>
+                      </span>
+                      <span className="text-zinc-500 dark:text-zinc-400 font-normal">
+                        Cashfree Payments
+                      </span>
+                    </div>
+                  </div>
+
+                  <motion.button
+                    whileHover={isLoading ? undefined : { scale: 1.01 }}
+                    whileTap={isLoading ? undefined : { scale: 0.98 }}
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:via-orange-600 hover:to-amber-700 text-white font-bold px-4 rounded-xl shadow-lg shadow-amber-500/20 border border-amber-400/30 transition-all cursor-pointer text-xs sm:text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Connecting to Cashfree...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-3.5 h-3.5 opacity-90" />
+                        <span>Pay ₹{inrAmount} &amp; Unlock Instantly</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </motion.button>
+                </form>
+              ) : (
+                <form onSubmit={handleActivateLicense} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                      License Key
+                    </label>
+                    <div className="relative">
+                      <Key className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        required
+                        value={licenseKey}
+                        onChange={(e) => setLicenseKey(e.target.value)}
+                        placeholder="e.g. DEMO-PRO-2026"
+                        className="w-full h-10.5 pl-10 pr-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/90 text-xs sm:text-sm font-mono uppercase tracking-wider text-zinc-950 dark:text-white placeholder:normal-case placeholder:tracking-normal placeholder:text-zinc-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 transition-all"
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      Sandbox test key:{" "}
+                      <code className="font-mono bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200">
+                        DEMO-PRO-2026
+                      </code>
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full h-11 flex items-center justify-center gap-2 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-200 font-bold px-4 rounded-xl shadow-xs transition-colors cursor-pointer text-xs sm:text-sm disabled:opacity-60"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying Key...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Verify &amp; Activate Pro</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {status && (
+                <div
+                  className={`mt-4 p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                    isSuccessStatus
+                      ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-700 dark:text-emerald-300"
+                      : isErrorStatus
+                      ? "bg-rose-500/10 border-rose-500/25 text-rose-700 dark:text-rose-300"
+                      : "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-300"
+                  }`}
+                >
+                  {isSuccessStatus ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  ) : isErrorStatus ? (
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                  ) : (
+                    <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+                  )}
+                  <span className="font-medium leading-snug">{status}</span>
+                </div>
+              )}
+            </div>
           </motion.div>
         </div>
       )}
