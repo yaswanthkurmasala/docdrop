@@ -52,7 +52,9 @@ export async function createSamplePdfFile(name: string = "Sample_Document.pdf", 
 export function createSampleImageFile(name: string = "Sample_Slide.png"): Promise<File> {
   return new Promise((resolve) => {
     if (typeof document === "undefined") {
-      resolve(new File([new Uint8Array(100)], name, { type: "image/png" }));
+      const validPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+      const validPngBuffer = Buffer.from(validPngBase64, "base64");
+      resolve(new File([validPngBuffer], name, { type: "image/png" }));
       return;
     }
     const canvas = document.createElement("canvas");

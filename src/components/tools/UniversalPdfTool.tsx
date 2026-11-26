@@ -243,6 +243,13 @@ interface RemovePageItem {
   markedForRemoval: boolean;
 }
 
+interface ImageStudioItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  rotation: number;
+}
+
 const getToolDetails = (id: string) => {
   switch (id) {
     case "split-pdf":
@@ -376,6 +383,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [isLoadingNumberThumbnails, setIsLoadingNumberThumbnails] = useState(false);
   const [numberProgress, setNumberProgress] = useState<{ percent: number; message: string } | null>(null);
   const [cropMargin, setCropMargin] = useState(36);
+  // Image & Scan Studio configurations
+  const [imageItems, setImageItems] = useState<ImageStudioItem[]>([]);
+  const [imagePageSize, setImagePageSize] = useState<"a4" | "fit" | "letter">("a4");
+  const [imageOrientation, setImageOrientation] = useState<"auto" | "portrait" | "landscape">("auto");
+  const [imageMargin, setImageMargin] = useState<"none" | "small" | "large">("none");
+  const [imageProgress, setImageProgress] = useState<{ percent: number; message: string } | null>(null);
+  const addImageInputRef = useRef<HTMLInputElement | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<"recommended" | "extreme" | "light" | "custom">("recommended");
   const [forceRasterize, setForceRasterize] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ percent: number; status: string } | null>(null);
@@ -576,6 +590,40 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     const updated = [...organizePages];
     updated.splice(idx + 1, 0, clone);
     setOrganizePages(updated);
+  };
+
+  const rotateImageItem = (id: string) => {
+    setImageItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, rotation: (item.rotation + 90) % 360 } : item
+      )
+    );
+  };
+
+  const moveImageItem = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= imageItems.length) return;
+    setImageItems((prev) => {
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIdx, 1);
+      copy.splice(toIdx, 0, moved);
+      return copy;
+    });
+    setMultiFiles((prev) => {
+      if (toIdx < 0 || toIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIdx, 1);
+      copy.splice(toIdx, 0, moved);
+      return copy;
+    });
+  };
+
+  const deleteImageItem = (id: string) => {
+    const itemToDelete = imageItems.find((i) => i.id === id);
+    if (itemToDelete?.previewUrl) {
+      try { URL.revokeObjectURL(itemToDelete.previewUrl); } catch {}
+    }
+    setImageItems((prev) => prev.filter((item) => item.id !== id));
+    setMultiFiles((prev) => prev.filter((f) => f !== itemToDelete?.file));
   };
 
   const loadSplitThumbnails = async (pdfFile: File) => {
@@ -1096,6 +1144,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setFile(null);
     setCompareSecondFile(null);
     setMultiFiles([]);
+    imageItems.forEach((it) => {
+      try { URL.revokeObjectURL(it.previewUrl); } catch {}
+    });
+    setImageItems([]);
+    setImageProgress(null);
+    setImagePageSize("a4");
+    setImageOrientation("auto");
+    setImageMargin("none");
     setResult(null);
     setError(null);
     setCloudBackupSuccess(false);
@@ -1254,7 +1310,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
     if (isMultiFileMode) {
       const filesArr = Array.from(selectedFiles);
-      setMultiFiles(filesArr);
+      const newItems: ImageStudioItem[] = filesArr.map((f, i) => ({
+        id: `img-${Date.now()}-${i}-${Math.random()}`,
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+        rotation: 0,
+      }));
+      setImageItems((prev) => [...prev, ...newItems]);
+      setMultiFiles((prev) => [...prev, ...filesArr]);
     } else {
       const f = selectedFiles[0];
       setFile(f);
@@ -1292,8 +1355,15 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         const htmlFile = createSampleHtmlFile("Sample_Webpage.html");
         setFile(htmlFile);
       } else if (isMultiFileMode) {
-        const img1 = await createSampleImageFile("Sample_Slide_1.png");
-        const img2 = await createSampleImageFile("Sample_Slide_2.png");
+        const img1 = await createSampleImageFile("Sample_Scan_1.png");
+        const img2 = await createSampleImageFile("Sample_Scan_2.png");
+        const items: ImageStudioItem[] = [img1, img2].map((f, i) => ({
+          id: `sample-img-${i}-${Date.now()}`,
+          file: f,
+          previewUrl: URL.createObjectURL(f),
+          rotation: 0,
+        }));
+        setImageItems(items);
         setMultiFiles([img1, img2]);
       } else if (toolId === "unlock-pdf") {
         const lockedPdf = await createSampleProtectedPdfFile("Locked_Contract_pass_123456.pdf", "123456");
@@ -1366,14 +1436,26 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       }
 
       if (isMultiFileMode) {
-        if (multiFiles.length === 0) throw new Error("Please select images or slides to convert.");
-        const res = await convertImagesToPdf(multiFiles);
+        const targetFiles = imageItems.length > 0 ? imageItems.map((item) => item.file) : multiFiles;
+        if (targetFiles.length === 0) throw new Error("Please select images or document photos to convert.");
+        const rotations = imageItems.length > 0 ? imageItems.map((item) => item.rotation) : [];
+
+        setImageProgress({ percent: 15, message: "Setting up image frames & orientation..." });
+        const res = await convertImagesToPdf(targetFiles, {
+          pageSize: imagePageSize,
+          orientation: imageOrientation,
+          margin: imageMargin,
+          rotations,
+          onProgress: (percent, message) => setImageProgress({ percent, message }),
+        });
+
         setResult({
           pdfBytes: res.pdfBytes,
           fileName: res.fileName,
-          meta: `Converted ${res.totalPages} items into a unified PDF document`,
+          meta: `Compiled ${res.totalPages} page(s) into high-quality ${imagePageSize.toUpperCase()} PDF (${imageOrientation === "auto" ? "Adaptive" : imageOrientation} layout, ${imageMargin} margins)`,
           type: "pdf",
         });
+        setImageProgress(null);
       } else if (isCompareMode) {
         if (!file || !compareSecondFile) throw new Error("Please select both Document 1 and Document 2 to compare.");
         const res = await comparePdf(file, compareSecondFile);
@@ -1943,13 +2025,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         }
 
         // Automatically log conversion event to Firestore
-        if (user?.id && file) {
+        const logFile = file || (imageItems.length > 0 ? imageItems[0].file : multiFiles[0]);
+        if (user?.id && logFile) {
           logConversionRecord(user.id, {
             toolId,
             toolName: details.title,
-            fileName: file.name,
-            outputFileName: `${file.name.replace(/\.[^/.]+$/, "")}_processed`,
-            fileSizeBytes: file.size,
+            fileName: logFile.name,
+            outputFileName: `${logFile.name.replace(/\.[^/.]+$/, "")}_processed`,
+            fileSizeBytes: logFile.size,
             timestamp: Date.now(),
             status: "success",
           }).catch(() => {});
@@ -2007,7 +2090,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   };
 
   const hasInput = isMultiFileMode
-    ? multiFiles.length > 0
+    ? imageItems.length > 0 || multiFiles.length > 0
     : isCompareMode
     ? !!file && !!compareSecondFile
     : !!file;
@@ -2018,6 +2101,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     removeProgress?.message ||
     watermarkProgress?.message ||
     numberProgress?.message ||
+    imageProgress?.message ||
     compressionProgress?.status ||
     repairProgress?.message ||
     signProgress?.message ||
@@ -2159,14 +2243,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                     <div>
                       <h4 className="text-sm font-bold text-zinc-950 dark:text-white truncate max-w-sm sm:max-w-md">
                         {isMultiFileMode
-                          ? `${multiFiles.length} images selected`
+                          ? `${(imageItems.length || multiFiles.length)} item${(imageItems.length || multiFiles.length) === 1 ? "" : "s"} selected`
                           : isCompareMode
                           ? `${file?.name} vs ${compareSecondFile?.name}`
                           : file?.name}
                       </h4>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
                         {isMultiFileMode
-                          ? `Total: ${(multiFiles.reduce((acc, f) => acc + f.size, 0) / 1024).toFixed(1)} KB`
+                          ? `Total: ${((imageItems.length > 0 ? imageItems.reduce((acc, it) => acc + it.file.size, 0) : multiFiles.reduce((acc, f) => acc + f.size, 0)) / 1024).toFixed(1)} KB`
                           : file ? `${(file.size / 1024).toFixed(1)} KB` : ""}
                       </p>
                     </div>
@@ -2180,7 +2264,240 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   </button>
                 </div>
 
+                {/* Hidden File Input for Adding More Images */}
+                <input
+                  type="file"
+                  ref={addImageInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      const filesArr = Array.from(e.target.files);
+                      const newItems: ImageStudioItem[] = filesArr.map((f, i) => ({
+                        id: `img-${Date.now()}-${i}-${Math.random()}`,
+                        file: f,
+                        previewUrl: URL.createObjectURL(f),
+                        rotation: 0,
+                      }));
+                      setImageItems((prev) => [...prev, ...newItems]);
+                      setMultiFiles((prev) => [...prev, ...filesArr]);
+                      if (addImageInputRef.current) addImageInputRef.current.value = "";
+                    }
+                  }}
+                  accept="image/*,.pdf"
+                  multiple
+                  className="hidden"
+                />
+
                 {/* Tool Custom Parameters */}
+                {isMultiFileMode && (
+                  <div className="space-y-5 text-left">
+                    {/* Studio Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                          {toolId === "scan-to-pdf" ? (
+                            <Camera className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <ImageIcon className="w-4 h-4 text-amber-500" />
+                          )}
+                          {toolId === "scan-to-pdf" ? "Scanned Documents & Page Order" : "Images to PDF Studio"}
+                        </h5>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          {imageItems.length} page{imageItems.length === 1 ? "" : "s"} queued • Rotate sideways scans &amp; arrange reading order
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => addImageInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5 shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add More {toolId === "scan-to-pdf" ? "Scans" : "Images"}
+                        </button>
+                        {imageItems.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              imageItems.forEach((it) => {
+                                try { URL.revokeObjectURL(it.previewUrl); } catch {}
+                              });
+                              setImageItems([]);
+                              setMultiFiles([]);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Thumbnail Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                      {imageItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className="group relative flex flex-col rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 p-2 overflow-hidden shadow-xs hover:border-zinc-400 dark:hover:border-zinc-600 transition-all"
+                        >
+                          {/* Card Top Pill: Page # and Delete */}
+                          <div className="flex items-center justify-between mb-1.5 px-0.5">
+                            <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">
+                              #{idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => deleteImageItem(item.id)}
+                              className="p-1 rounded-md text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
+                              title="Remove this page"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Thumbnail Preview with Dynamic CSS Rotation */}
+                          <div className="relative aspect-[3/4] w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-center overflow-hidden">
+                            {item.previewUrl ? (
+                              <img
+                                src={item.previewUrl}
+                                alt={`Page ${idx + 1}`}
+                                style={{
+                                  transform: `rotate(${item.rotation}deg)`,
+                                  transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                                }}
+                                className="max-h-full max-w-full object-contain pointer-events-none"
+                              />
+                            ) : (
+                              <ImageIcon className="w-8 h-8 text-zinc-300 dark:text-zinc-700" />
+                            )}
+
+                            {item.rotation !== 0 && (
+                              <span className="absolute bottom-1.5 left-1.5 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-zinc-950/80 text-white backdrop-blur-xs">
+                                {item.rotation}°
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Toolbar */}
+                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-zinc-200/60 dark:border-zinc-800 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => rotateImageItem(item.id)}
+                              className="flex items-center gap-1 font-bold text-zinc-700 dark:text-zinc-300 hover:text-purple-600 dark:hover:text-purple-400 py-0.5 px-1 rounded cursor-pointer"
+                              title="Rotate 90° clockwise"
+                            >
+                              <RotateCw className="w-3 h-3" /> +90°
+                            </button>
+
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => moveImageItem(idx, idx - 1)}
+                                className="p-1 rounded text-zinc-500 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                                title="Move earlier"
+                              >
+                                <ArrowLeft className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === imageItems.length - 1}
+                                onClick={() => moveImageItem(idx, idx + 1)}
+                                className="p-1 rounded text-zinc-500 hover:text-zinc-950 dark:hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                                title="Move later"
+                              >
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Layout & Margin Settings */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                      {/* Page Standard Size */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Paper Standard
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "a4", label: "A4 Sheet" },
+                            { id: "fit", label: "Fit Photo" },
+                            { id: "letter", label: "US Letter" },
+                          ].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setImagePageSize(s.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                imagePageSize === s.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Page Orientation */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Page Orientation
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "auto", label: "Auto" },
+                            { id: "portrait", label: "Portrait" },
+                            { id: "landscape", label: "Landscape" },
+                          ].map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => setImageOrientation(o.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                imageOrientation === o.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Page Margin */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Page Margins
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "none", label: "Full Bleed" },
+                            { id: "small", label: "Small" },
+                            { id: "large", label: "Spacious" },
+                          ].map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setImageMargin(m.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                imageMargin === m.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {(toolId === "split-pdf" || toolId === "extract-pages") && (
                   <div className="space-y-4 text-left">
                     {/* Split Method Segmented Selector */}
@@ -6254,6 +6571,10 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       "Stamp Certified Signature"
                     ) : toolId === "redact-pdf" ? (
                       "Burn Permanent Redactions"
+                    ) : toolId === "scan-to-pdf" ? (
+                      `Compile ${(imageItems.length || multiFiles.length)} Scan${(imageItems.length || multiFiles.length) === 1 ? "" : "s"} into PDF`
+                    ) : toolId === "jpg-to-pdf" ? (
+                      `Convert ${(imageItems.length || multiFiles.length)} Image${(imageItems.length || multiFiles.length) === 1 ? "" : "s"} to PDF`
                     ) : (
                       `Execute ${details.title.split(" ")[0]}`
                     )}

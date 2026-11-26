@@ -460,6 +460,17 @@ async function runCompleteSuiteTest() {
     if (!res.pdfBytes || res.totalPages < 1) throw new Error("Failed convertHtmlToPdf");
   });
 
+  await check("Images to PDF (JPG/PNG & Scan to PDF)", async () => {
+    const img1 = await createSampleImageFile("Scan_Page_1.png");
+    const img2 = await createSampleImageFile("Scan_Page_2.png");
+    const res = await convertImagesToPdf([img1, img2], {
+      pageSize: "a4",
+      orientation: "portrait",
+      margin: "small",
+    });
+    if (!res.pdfBytes || res.totalPages !== 2) throw new Error("Failed convertImagesToPdf");
+  });
+
   await check("Merge multiple PDFs", async () => {
     const p1 = await createSamplePdfFile("Merge1.pdf", 2);
     const p2 = await createSamplePdfFile("Merge2.pdf", 3);
