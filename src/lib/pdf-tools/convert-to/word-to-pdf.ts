@@ -41,19 +41,32 @@ function wrapWords(text: string, maxLen: number = 80): string[] {
   return lines;
 }
 
+export interface WordToPdfOptions {
+  pageSize?: "a4" | "letter";
+  margin?: "standard" | "compact" | "spacious";
+  fontFamily?: "helvetica" | "times" | "courier";
+  includeHeader?: boolean;
+  onProgress?: (percent: number, message: string) => void;
+}
+
 /**
  * Convert Microsoft Word (.docx) document to PDF with headings, lists, and table preservation
  */
-export async function convertWordToPdf(file: File): Promise<{
+export async function convertWordToPdf(
+  file: File,
+  options?: WordToPdfOptions
+): Promise<{
   pdfBytes: Uint8Array;
   fileName: string;
   totalPages: number;
 }> {
+  options?.onProgress?.(15, "Reading Word document XML archive...");
   const mammothModule = await import("mammoth");
   const mammoth = (mammothModule as any).default || mammothModule;
   const arrayBuffer = await file.arrayBuffer();
   const buffer = typeof Buffer !== "undefined" ? Buffer.from(arrayBuffer) : arrayBuffer;
 
+  options?.onProgress?.(35, "Parsing document styles, headings & tables...");
   let html = "";
   try {
     const res = await (mammoth.convertToHtml as any)({
@@ -67,13 +80,29 @@ export async function convertWordToPdf(file: File): Promise<{
     html = `<p>${rawRes.value.replace(/\n\n+/g, "</p><p>")}</p>`;
   }
 
+  options?.onProgress?.(60, "Formatting PDF typography and layout...");
   const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  const pageSize: [number, number] = [595, 842]; // A4
-  const margin = 48;
+  let regularFont = StandardFonts.Helvetica;
+  let boldFont = StandardFonts.HelveticaBold;
+  let obliqueFont = StandardFonts.HelveticaOblique;
+
+  if (options?.fontFamily === "times") {
+    regularFont = StandardFonts.TimesRoman;
+    boldFont = StandardFonts.TimesRomanBold;
+    obliqueFont = StandardFonts.TimesRomanItalic;
+  } else if (options?.fontFamily === "courier") {
+    regularFont = StandardFonts.Courier;
+    boldFont = StandardFonts.CourierBold;
+    obliqueFont = StandardFonts.CourierOblique;
+  }
+
+  const font = await pdfDoc.embedFont(regularFont);
+  const fontBold = await pdfDoc.embedFont(boldFont);
+  const fontOblique = await pdfDoc.embedFont(obliqueFont);
+
+  const pageSize: [number, number] = options?.pageSize === "letter" ? [612, 792] : [595, 842];
+  const margin = options?.margin === "compact" ? 28 : options?.margin === "spacious" ? 64 : 48;
   const printableWidth = pageSize[0] - margin * 2;
   const maxY = pageSize[1] - margin;
   const minY = margin;
@@ -88,16 +117,19 @@ export async function convertWordToPdf(file: File): Promise<{
     }
   };
 
-  // Header Title
   const baseName = file.name.replace(/\.[^/.]+$/, "");
-  currentPage.drawText(sanitizeWinAnsi(baseName), {
-    x: margin,
-    y: currentY,
-    size: 9,
-    font: fontBold,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-  currentY -= 28;
+
+  // Header Title
+  if (options?.includeHeader !== false) {
+    currentPage.drawText(sanitizeWinAnsi(baseName), {
+      x: margin,
+      y: currentY,
+      size: 9,
+      font: fontBold,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+    currentY -= 28;
+  }
 
   // Simple token parser for mammoth HTML output:
   // Extracts <h1-h4>, <p>, <ul>/<ol>/<li>, and <table>

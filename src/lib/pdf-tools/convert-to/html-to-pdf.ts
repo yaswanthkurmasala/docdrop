@@ -43,24 +43,39 @@ function wrapWords(text: string, maxLen: number = 80): string[] {
   return lines;
 }
 
+export interface HtmlToPdfOptions {
+  pageSize?: "a4" | "letter";
+  orientation?: "portrait" | "landscape";
+  margin?: "standard" | "compact" | "spacious";
+  onProgress?: (percent: number, message: string) => void;
+}
+
 /**
  * Convert HTML document to formatted PDF with layout preservation
  * Renders headings, blockquotes, lists, tables, and paragraphs cleanly
  */
-export async function convertHtmlToPdf(file: File): Promise<{
+export async function convertHtmlToPdf(
+  file: File,
+  options?: HtmlToPdfOptions
+): Promise<{
   pdfBytes: Uint8Array;
   fileName: string;
   totalPages: number;
 }> {
+  options?.onProgress?.(15, "Parsing HTML tags and stylesheet classes...");
   const htmlContent = await file.text();
 
+  options?.onProgress?.(40, "Building DOM tree and computing layout flow...");
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
 
-  const pageSize: [number, number] = [595, 842]; // A4 Portrait
-  const margin = 48;
+  const baseDims: [number, number] = options?.pageSize === "letter" ? [612, 792] : [595, 842];
+  const isLandscape = options?.orientation === "landscape";
+  const pageSize: [number, number] = isLandscape ? [Math.max(...baseDims), Math.min(...baseDims)] : [Math.min(...baseDims), Math.max(...baseDims)];
+
+  const margin = options?.margin === "compact" ? 28 : options?.margin === "spacious" ? 64 : 48;
   const printableWidth = pageSize[0] - margin * 2;
   const maxY = pageSize[1] - margin;
   const minY = margin;

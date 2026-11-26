@@ -390,6 +390,30 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [imageMargin, setImageMargin] = useState<"none" | "small" | "large">("none");
   const [imageProgress, setImageProgress] = useState<{ percent: number; message: string } | null>(null);
   const addImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Word to PDF studio options
+  const [wordToPdfPageSize, setWordToPdfPageSize] = useState<"a4" | "letter">("a4");
+  const [wordToPdfMargin, setWordToPdfMargin] = useState<"standard" | "compact" | "spacious">("standard");
+  const [wordToPdfFont, setWordToPdfFont] = useState<"helvetica" | "times" | "courier">("helvetica");
+  const [wordToPdfIncludeHeader, setWordToPdfIncludeHeader] = useState<boolean>(true);
+  const [wordToPdfProgress, setWordToPdfProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // Excel to PDF studio options
+  const [excelOrientation, setExcelOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [excelTheme, setExcelTheme] = useState<"corporate_blue" | "minimalist" | "financial_green">("corporate_blue");
+  const [excelShowGridlines, setExcelShowGridlines] = useState<boolean>(true);
+  const [excelProgress, setExcelProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // HTML to PDF studio options
+  const [htmlPageSize, setHtmlPageSize] = useState<"a4" | "letter">("a4");
+  const [htmlOrientation, setHtmlOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [htmlMargin, setHtmlMargin] = useState<"standard" | "compact" | "spacious">("standard");
+  const [htmlProgress, setHtmlProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // PDF to JPG studio options
+  const [pdfToJpgDpi, setPdfToJpgDpi] = useState<number>(1.5);
+  const [pdfToJpgFormat, setPdfToJpgFormat] = useState<"jpeg" | "png">("jpeg");
+  const [pdfToJpgProgress, setPdfToJpgProgress] = useState<{ percent: number; message: string } | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<"recommended" | "extreme" | "light" | "custom">("recommended");
   const [forceRasterize, setForceRasterize] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ percent: number; status: string } | null>(null);
@@ -1152,6 +1176,22 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setImagePageSize("a4");
     setImageOrientation("auto");
     setImageMargin("none");
+    setWordToPdfPageSize("a4");
+    setWordToPdfMargin("standard");
+    setWordToPdfFont("helvetica");
+    setWordToPdfIncludeHeader(true);
+    setWordToPdfProgress(null);
+    setExcelOrientation("landscape");
+    setExcelTheme("corporate_blue");
+    setExcelShowGridlines(true);
+    setExcelProgress(null);
+    setHtmlPageSize("a4");
+    setHtmlOrientation("portrait");
+    setHtmlMargin("standard");
+    setHtmlProgress(null);
+    setPdfToJpgDpi(1.5);
+    setPdfToJpgFormat("jpeg");
+    setPdfToJpgProgress(null);
     setResult(null);
     setError(null);
     setCloudBackupSuccess(false);
@@ -1742,44 +1782,72 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "word-to-pdf": {
-            const res = await convertWordToPdf(file);
+            setWordToPdfProgress({ percent: 10, message: "Parsing Word document typography & layout..." });
+            const res = await convertWordToPdf(file, {
+              pageSize: wordToPdfPageSize,
+              margin: wordToPdfMargin,
+              fontFamily: wordToPdfFont,
+              includeHeader: wordToPdfIncludeHeader,
+              onProgress: (percent, message) => setWordToPdfProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Converted Word document into ${res.totalPages} formatted PDF pages`,
+              meta: `Converted Word document into ${res.totalPages} formatted ${wordToPdfPageSize.toUpperCase()} PDF page(s) (${wordToPdfFont} typography)`,
               type: "pdf",
             });
+            setWordToPdfProgress(null);
             break;
           }
           case "excel-to-pdf": {
-            const res = await convertExcelToPdf(file);
+            setExcelProgress({ percent: 10, message: "Reading workbook sheets & computing gridlines..." });
+            const res = await convertExcelToPdf(file, {
+              orientation: excelOrientation,
+              theme: excelTheme,
+              showGridlines: excelShowGridlines,
+              onProgress: (percent, message) => setExcelProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Generated ${res.totalPages} table page(s) from spreadsheet`,
+              meta: `Generated ${res.totalPages} ${excelOrientation} table page(s) (${excelTheme.replace("_", " ")})`,
               type: "pdf",
             });
+            setExcelProgress(null);
             break;
           }
           case "html-to-pdf": {
-            const res = await convertHtmlToPdf(file);
+            setHtmlProgress({ percent: 10, message: "Parsing HTML markup & DOM structure..." });
+            const res = await convertHtmlToPdf(file, {
+              pageSize: htmlPageSize,
+              orientation: htmlOrientation,
+              margin: htmlMargin,
+              onProgress: (percent, message) => setHtmlProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Rendered HTML into ${res.totalPages} formatted PDF page(s)`,
+              meta: `Rendered HTML into ${res.totalPages} formatted ${htmlPageSize.toUpperCase()} PDF page(s) (${htmlOrientation} layout)`,
               type: "pdf",
             });
+            setHtmlProgress(null);
             break;
           }
           case "pdf-to-jpg": {
-            const res = await convertPdfToJpg(file);
+            setPdfToJpgProgress({ percent: 10, message: "Rasterizing PDF pages into high-resolution images..." });
+            const res = await convertPdfToJpg(file, {
+              scale: pdfToJpgDpi,
+              format: pdfToJpgFormat,
+              onProgress: (percent, message) => setPdfToJpgProgress({ percent, message }),
+            });
             setResult({
               zipBlob: res.zipBlob,
               images: res.images,
               fileName: res.fileName,
-              meta: `Generated high-resolution JPG images for all ${res.totalPages} pages`,
+              meta: `Generated ${pdfToJpgDpi === 2.0 ? "300 DPI Ultra HD" : pdfToJpgDpi === 1.5 ? "150 DPI Crisp" : "96 DPI Standard"} ${pdfToJpgFormat.toUpperCase()} images for all ${res.totalPages} pages`,
               type: "zip",
             });
+            setPdfToJpgProgress(null);
             break;
           }
           case "pdf-to-word": {
@@ -2102,6 +2170,10 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     watermarkProgress?.message ||
     numberProgress?.message ||
     imageProgress?.message ||
+    wordToPdfProgress?.message ||
+    excelProgress?.message ||
+    htmlProgress?.message ||
+    pdfToJpgProgress?.message ||
     compressionProgress?.status ||
     repairProgress?.message ||
     signProgress?.message ||
@@ -6507,6 +6579,397 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   </div>
                 )}
 
+                {/* Word to PDF Studio Configuration */}
+                {toolId === "word-to-pdf" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText className="w-4 h-4 text-blue-500" /> Word to PDF Layout &amp; Typography
+                        </h5>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Preserves document headings, bullet points, tables &amp; formatting
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> 100% In-Browser Memory
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                      {/* Page Size */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Paper Size
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "a4", label: "A4 Standard" },
+                            { id: "letter", label: "US Letter" },
+                          ].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setWordToPdfPageSize(s.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                wordToPdfPageSize === s.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Font Typography */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Typography Style
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "helvetica", label: "Modern" },
+                            { id: "times", label: "Classic" },
+                            { id: "courier", label: "Mono" },
+                          ].map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => setWordToPdfFont(f.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                wordToPdfFont === f.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Margins */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Document Margins
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "compact", label: "Tight" },
+                            { id: "standard", label: "Normal" },
+                            { id: "spacious", label: "Wide" },
+                          ].map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setWordToPdfMargin(m.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                wordToPdfMargin === m.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setWordToPdfIncludeHeader(!wordToPdfIncludeHeader)}
+                      className="p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between cursor-pointer hover:border-zinc-400 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={wordToPdfIncludeHeader}
+                          onChange={(e) => setWordToPdfIncludeHeader(e.target.checked)}
+                          className="h-4 w-4 rounded border-zinc-300 accent-zinc-950 dark:accent-white cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                          Include Document Header with Title Bar
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        {wordToPdfIncludeHeader ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Excel to PDF Studio Configuration */}
+                {toolId === "excel-to-pdf" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Spreadsheet to PDF Table Layout
+                        </h5>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Converts sheets into structured tabular rows with automatic column scaling
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> High-Density Grid
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                      {/* Orientation */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Table Orientation
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "landscape", label: "Landscape (Wide Tables)" },
+                            { id: "portrait", label: "Portrait (Tall Lists)" },
+                          ].map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => setExcelOrientation(o.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                excelOrientation === o.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Theme */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Table Style Theme
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "corporate_blue", label: "Corporate" },
+                            { id: "minimalist", label: "Minimal" },
+                            { id: "financial_green", label: "Financial" },
+                          ].map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setExcelTheme(t.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                excelTheme === t.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setExcelShowGridlines(!excelShowGridlines)}
+                      className="p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between cursor-pointer hover:border-zinc-400 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={excelShowGridlines}
+                          onChange={(e) => setExcelShowGridlines(e.target.checked)}
+                          className="h-4 w-4 rounded border-zinc-300 accent-zinc-950 dark:accent-white cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                          Print Visible Table Border Gridlines
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono text-zinc-500">
+                        {excelShowGridlines ? "Lines Active" : "Clean Borderless"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* HTML to PDF Studio Configuration */}
+                {toolId === "html-to-pdf" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileCode2 className="w-4 h-4 text-amber-500" /> HTML &amp; Webpage Rendering Layout
+                        </h5>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Renders HTML markup, heading hierarchies, tables &amp; block elements
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> DOM Flow Engine
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                      {/* Orientation */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Orientation
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "portrait", label: "Portrait" },
+                            { id: "landscape", label: "Landscape" },
+                          ].map((o) => (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => setHtmlOrientation(o.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                htmlOrientation === o.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Paper Size */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Paper Size
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "a4", label: "A4 Standard" },
+                            { id: "letter", label: "US Letter" },
+                          ].map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setHtmlPageSize(s.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                htmlPageSize === s.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Margins */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Margins
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "compact", label: "Tight" },
+                            { id: "standard", label: "Normal" },
+                            { id: "spacious", label: "Wide" },
+                          ].map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setHtmlMargin(m.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                htmlMargin === m.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PDF to JPG Studio Configuration */}
+                {toolId === "pdf-to-jpg" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                          <ImageIcon className="w-4 h-4 text-blue-500" /> Image Extraction &amp; Rasterization Quality
+                        </h5>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Renders each page to high-DPI canvas frames and bundles into a ZIP archive
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> High-DPI Canvas
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                      {/* DPI Resolution */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Image Quality &amp; DPI
+                        </label>
+                        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { dpi: 1.5, label: "150 DPI Crisp" },
+                            { dpi: 2.0, label: "300 DPI Ultra" },
+                            { dpi: 1.0, label: "96 DPI Standard" },
+                          ].map((d) => (
+                            <button
+                              key={d.dpi}
+                              type="button"
+                              onClick={() => setPdfToJpgDpi(d.dpi)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                pdfToJpgDpi === d.dpi
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Format */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
+                          Output Format
+                        </label>
+                        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-zinc-200/60 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                          {[
+                            { id: "jpeg", label: "JPG (High Quality)" },
+                            { id: "png", label: "PNG (Lossless)" },
+                          ].map((fmt) => (
+                            <button
+                              key={fmt.id}
+                              type="button"
+                              onClick={() => setPdfToJpgFormat(fmt.id as any)}
+                              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                pdfToJpgFormat === fmt.id
+                                  ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+                              }`}
+                            >
+                              {fmt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Error Banner */}
                 {error && (
                   <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-400 text-xs flex items-start gap-2.5 text-left">
@@ -6575,6 +7038,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       `Compile ${(imageItems.length || multiFiles.length)} Scan${(imageItems.length || multiFiles.length) === 1 ? "" : "s"} into PDF`
                     ) : toolId === "jpg-to-pdf" ? (
                       `Convert ${(imageItems.length || multiFiles.length)} Image${(imageItems.length || multiFiles.length) === 1 ? "" : "s"} to PDF`
+                    ) : toolId === "word-to-pdf" ? (
+                      "Convert Word to PDF"
+                    ) : toolId === "excel-to-pdf" ? (
+                      "Convert Spreadsheet to PDF"
+                    ) : toolId === "html-to-pdf" ? (
+                      "Render HTML to PDF"
+                    ) : toolId === "pdf-to-jpg" ? (
+                      `Extract Pages to ${pdfToJpgFormat.toUpperCase()} (ZIP)`
                     ) : (
                       `Execute ${details.title.split(" ")[0]}`
                     )}
