@@ -8,15 +8,24 @@ interface CoordinateTextItem {
   height: number;
 }
 
+export interface PdfToExcelOptions {
+  includePageColumn?: boolean;
+  onProgress?: (percent: number, message: string) => void;
+}
+
 /**
  * Extract tabular PDF rows and columns into Excel spreadsheet (.xlsx)
  * Uses coordinate-based spatial clustering to align columns into spreadsheet cells
  */
-export async function convertPdfToExcel(file: File): Promise<{
+export async function convertPdfToExcel(
+  file: File,
+  options?: PdfToExcelOptions
+): Promise<{
   excelBuffer: ArrayBuffer;
   fileName: string;
   totalRows: number;
 }> {
+  options?.onProgress?.(10, "Initializing PDF text stream parser...");
   const pdfjs = await loadPdfJs();
   const XLSX = await import("xlsx");
   const buffer = await file.arrayBuffer();
@@ -29,7 +38,11 @@ export async function convertPdfToExcel(file: File): Promise<{
   const numPages = doc.numPages;
   const baseName = file.name.replace(/\.[^/.]+$/, "");
 
-  const allRows: string[][] = [["Page", "Row #", "Col 1", "Col 2", "Col 3", "Col 4", "Col 5", "Col 6"]];
+  const includePage = options?.includePageColumn !== false;
+  const headerCols = includePage
+    ? ["Page", "Row #", "Col 1", "Col 2", "Col 3", "Col 4", "Col 5", "Col 6"]
+    : ["Row #", "Col 1", "Col 2", "Col 3", "Col 4", "Col 5", "Col 6"];
+  const allRows: string[][] = [headerCols];
 
   for (let p = 1; p <= numPages; p++) {
     const page = await doc.getPage(p);
@@ -107,15 +120,20 @@ export async function convertPdfToExcel(file: File): Promise<{
       }
 
       if (cells.length > 0) {
-        allRows.push([`Page ${p}`, `${lineIdx + 1}`, ...cells]);
+        if (includePage) {
+          allRows.push([`Page ${p}`, `${lineIdx + 1}`, ...cells]);
+        } else {
+          allRows.push([`${lineIdx + 1}`, ...cells]);
+        }
       }
     });
   }
 
   // Normalize column count in header
   const maxColumns = Math.max(...allRows.map((r) => r.length), 3);
-  const headerRow = ["Page", "Row #"];
-  for (let c = 1; c <= maxColumns - 2; c++) {
+  const headerRow = includePage ? ["Page", "Row #"] : ["Row #"];
+  const prefixLen = headerRow.length;
+  for (let c = 1; c <= maxColumns - prefixLen; c++) {
     headerRow.push(`Column ${c}`);
   }
   allRows[0] = headerRow;

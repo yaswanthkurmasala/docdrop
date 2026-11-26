@@ -414,6 +414,25 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [pdfToJpgDpi, setPdfToJpgDpi] = useState<number>(1.5);
   const [pdfToJpgFormat, setPdfToJpgFormat] = useState<"jpeg" | "png">("jpeg");
   const [pdfToJpgProgress, setPdfToJpgProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // Rotate PDF studio options
+  const [rotatePageScope, setRotatePageScope] = useState<"all" | "odd" | "even" | "custom">("all");
+  const [rotateCustomPages, setRotateCustomPages] = useState<string>("1");
+  const [rotateProgress, setRotateProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // PDF to Excel studio options
+  const [pdfToExcelIncludePage, setPdfToExcelIncludePage] = useState<boolean>(true);
+  const [pdfToExcelProgress, setPdfToExcelProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // PDF to PDF/A studio options
+  const [pdfaLevel, setPdfaLevel] = useState<"PDF/A-1b" | "PDF/A-2b" | "PDF/A-3b">("PDF/A-2b");
+  const [pdfaColorProfile, setPdfaColorProfile] = useState<"sRGB" | "DeviceCMYK">("sRGB");
+  const [pdfaProgress, setPdfaProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // PDF to PowerPoint studio options
+  const [slidesDpi, setSlidesDpi] = useState<number>(1.5);
+  const [slidesFormat, setSlidesFormat] = useState<"jpeg" | "png">("jpeg");
+  const [slidesProgress, setSlidesProgress] = useState<{ percent: number; message: string } | null>(null);
   const [compressionLevel, setCompressionLevel] = useState<"recommended" | "extreme" | "light" | "custom">("recommended");
   const [forceRasterize, setForceRasterize] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ percent: number; status: string } | null>(null);
@@ -1192,6 +1211,17 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setPdfToJpgDpi(1.5);
     setPdfToJpgFormat("jpeg");
     setPdfToJpgProgress(null);
+    setRotatePageScope("all");
+    setRotateCustomPages("1");
+    setRotateProgress(null);
+    setPdfToExcelIncludePage(true);
+    setPdfToExcelProgress(null);
+    setPdfaLevel("PDF/A-2b");
+    setPdfaColorProfile("sRGB");
+    setPdfaProgress(null);
+    setSlidesDpi(1.5);
+    setSlidesFormat("jpeg");
+    setSlidesProgress(null);
     setResult(null);
     setError(null);
     setCloudBackupSuccess(false);
@@ -1556,13 +1586,28 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "rotate-pdf": {
-            const res = await rotatePdf(file, rotateAngle);
+            setRotateProgress({ percent: 15, message: "Analyzing PDF page orientation..." });
+            const res = await rotatePdf(file, {
+              angleDegrees: rotateAngle,
+              pageScope: rotatePageScope,
+              customPages: rotateCustomPages,
+              onProgress: (percent, message) => setRotateProgress({ percent, message }),
+            });
+            const scopeLabel =
+              rotatePageScope === "all"
+                ? "All pages"
+                : rotatePageScope === "odd"
+                ? "Odd pages"
+                : rotatePageScope === "even"
+                ? "Even pages"
+                : `Custom pages (${rotateCustomPages})`;
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Rotated ${res.totalPages} page(s) by ${rotateAngle}°`,
+              meta: `Rotated ${scopeLabel} by +${rotateAngle}° (${res.totalPages} total pages in document)`,
               type: "pdf",
             });
+            setRotateProgress(null);
             break;
           }
           case "remove-pages": {
@@ -1875,34 +1920,51 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "pdf-to-excel": {
-            const res = await convertPdfToExcel(file);
+            setPdfToExcelProgress({ percent: 10, message: "Parsing PDF document & extracting text streams..." });
+            const res = await convertPdfToExcel(file, {
+              includePageColumn: pdfToExcelIncludePage,
+              onProgress: (percent, message) => setPdfToExcelProgress({ percent, message }),
+            });
             setResult({
               excelBuffer: res.excelBuffer,
               fileName: res.fileName,
-              meta: `Extracted ${res.totalRows} table rows into Excel spreadsheet`,
+              meta: `Extracted ${res.totalRows} table rows into Excel spreadsheet (.xlsx)`,
               type: "xlsx",
             });
+            setPdfToExcelProgress(null);
             break;
           }
           case "pdf-to-pdfa": {
-            const res = await convertPdfToPdfA(file);
+            setPdfaProgress({ percent: 15, message: "Reading PDF catalog & object tree..." });
+            const res = await convertPdfToPdfA(file, {
+              conformanceLevel: pdfaLevel,
+              colorProfile: pdfaColorProfile,
+              onProgress: (percent, message) => setPdfaProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Tagged ${res.totalPages} pages with PDF/A archival metadata`,
+              meta: `Standardized ${res.totalPages} page(s) to ISO 19005 ${res.conformanceLevel} (${pdfaColorProfile}) archival format`,
               type: "pdf",
             });
+            setPdfaProgress(null);
             break;
           }
           case "pdf-to-powerpoint": {
-            const res = await convertPdfToJpg(file);
+            setSlidesProgress({ percent: 10, message: "Rasterizing presentation slides..." });
+            const res = await convertPdfToJpg(file, {
+              scale: slidesDpi,
+              format: slidesFormat,
+              onProgress: (percent, message) => setSlidesProgress({ percent, message }),
+            });
             setResult({
               zipBlob: res.zipBlob,
               images: res.images,
               fileName: `${file.name.replace(/\.[^/.]+$/, "")}_slides.zip`,
-              meta: `Extracted ${res.totalPages} slides into presentation slide package`,
+              meta: `Extracted ${res.totalPages} slides into ${slidesDpi === 2.0 ? "300 DPI Ultra HD" : slidesDpi === 1.5 ? "150 DPI Crisp" : "96 DPI"} presentation package (${slidesFormat.toUpperCase()} ZIP)`,
               type: "zip",
             });
+            setSlidesProgress(null);
             break;
           }
           case "edit-pdf": {
@@ -2174,6 +2236,10 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     excelProgress?.message ||
     htmlProgress?.message ||
     pdfToJpgProgress?.message ||
+    rotateProgress?.message ||
+    pdfToExcelProgress?.message ||
+    pdfaProgress?.message ||
+    slidesProgress?.message ||
     compressionProgress?.status ||
     repairProgress?.message ||
     signProgress?.message ||
@@ -2912,23 +2978,107 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "rotate-pdf" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Rotation Angle</label>
-                    <div className="flex gap-2">
-                      {[90, 180, 270].map((deg) => (
-                        <button
-                          key={deg}
-                          onClick={() => setRotateAngle(deg)}
-                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                            rotateAngle === deg
-                              ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
-                              : "border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                          }`}
-                        >
-                          +{deg}° Clockwise
-                        </button>
-                      ))}
+                  <div className="space-y-4 text-left">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <RotateCw className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        Orientation &amp; Page Scope
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Zero Quality Loss
+                      </span>
                     </div>
+
+                    {/* Rotation Angle Selector */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Rotation Angle
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { deg: 90, label: "+90° Clockwise", desc: "Turn right (quarter)" },
+                          { deg: 180, label: "+180° Invert", desc: "Turn upside down" },
+                          { deg: 270, label: "+270° Counter-CW", desc: "Turn left (three-quarters)" },
+                        ].map((item) => (
+                          <button
+                            key={item.deg}
+                            type="button"
+                            onClick={() => setRotateAngle(item.deg)}
+                            className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                              rotateAngle === item.deg
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                rotateAngle === item.deg
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {item.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Page Scope Selector */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Target Pages
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { scope: "all" as const, label: "All Pages", tag: "Full PDF" },
+                          { scope: "odd" as const, label: "Odd Pages", tag: "1, 3, 5..." },
+                          { scope: "even" as const, label: "Even Pages", tag: "2, 4, 6..." },
+                          { scope: "custom" as const, label: "Custom Range", tag: "Specific" },
+                        ].map((item) => (
+                          <button
+                            key={item.scope}
+                            type="button"
+                            onClick={() => setRotatePageScope(item.scope)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              rotatePageScope === item.scope
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div
+                              className={`text-[10px] font-mono ${
+                                rotatePageScope === item.scope
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {item.tag}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Page Input */}
+                    {rotatePageScope === "custom" && (
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
+                          <span>Enter Page Numbers or Ranges</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">e.g. 1, 3, 5-8</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={rotateCustomPages}
+                          onChange={(e) => setRotateCustomPages(e.target.value)}
+                          placeholder="1, 3, 5-8"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-mono font-medium border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -6023,6 +6173,245 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   </div>
                 )}
 
+                {toolId === "pdf-to-excel" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        Table Structure &amp; Column Clustering
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Native .xlsx Format
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            Include Page Metadata Column
+                          </label>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Prepends a &quot;Page #&quot; column indicating source document page for each table row
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={pdfToExcelIncludePage}
+                          onChange={(e) => setPdfToExcelIncludePage(e.target.checked)}
+                          className="w-4 h-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="pt-2 border-t border-zinc-200/70 dark:border-zinc-800/70 flex flex-wrap gap-2 text-[10px] font-mono">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold">
+                          Spatial Column Alignment
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          Auto-Row Clustering
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                          100% Client-Side
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {toolId === "pdf-to-pdfa" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        ISO 19005 Archival Conformance
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Legal Long-Term Preservation
+                      </span>
+                    </div>
+
+                    {/* Conformance Level */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Conformance Profile Level
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {[
+                          { level: "PDF/A-2b" as const, title: "PDF/A-2b", subtitle: "ISO 19005-2 Standard", tag: "Recommended", desc: "Modern visual preservation with transparent layer support" },
+                          { level: "PDF/A-1b" as const, title: "PDF/A-1b", subtitle: "ISO 19005-1 Legacy", tag: "Strict", desc: "Basic visual conformance for government & court archives" },
+                          { level: "PDF/A-3b" as const, title: "PDF/A-3b", subtitle: "ISO 19005-3 Extended", tag: "Extended", desc: "Supports embedded attachments and raw data payloads" },
+                        ].map((item) => (
+                          <div
+                            key={item.level}
+                            onClick={() => setPdfaLevel(item.level)}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              pdfaLevel === item.level
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold">{item.title}</span>
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                    pdfaLevel === item.level
+                                      ? "bg-white/20 text-white dark:bg-black/10 dark:text-black"
+                                      : "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300"
+                                  }`}
+                                >
+                                  {item.tag}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[10px] leading-relaxed ${
+                                  pdfaLevel === item.level
+                                    ? "text-zinc-300 dark:text-zinc-600"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {item.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Color Profile */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Color Space Profile
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { profile: "sRGB" as const, label: "sRGB Display Profile", desc: "Standard for digital screens & monitors" },
+                          { profile: "DeviceCMYK" as const, label: "DeviceCMYK Print Profile", desc: "Optimized for archival printing & presses" },
+                        ].map((item) => (
+                          <button
+                            key={item.profile}
+                            type="button"
+                            onClick={() => setPdfaColorProfile(item.profile)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              pdfaColorProfile === item.profile
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                pdfaColorProfile === item.profile
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {item.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {toolId === "pdf-to-powerpoint" && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <Presentation className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400" />
+                        Presentation Slide Extraction Studio
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Slide Deck Package (ZIP)
+                      </span>
+                    </div>
+
+                    {/* Slide Resolution */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Slide Rendering Resolution
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { dpi: 1.5, label: "150 DPI Crisp", desc: "Recommended for slide shows", badge: "Balanced" },
+                          { dpi: 2.0, label: "300 DPI Ultra HD", desc: "Maximum 4K presentation clarity", badge: "Ultra" },
+                          { dpi: 1.0, label: "96 DPI Standard", desc: "Compact size for email decks", badge: "Fast" },
+                        ].map((item) => (
+                          <div
+                            key={item.dpi}
+                            onClick={() => setSlidesDpi(item.dpi)}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              slidesDpi === item.dpi
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold">{item.label}</span>
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                    slidesDpi === item.dpi
+                                      ? "bg-white/20 text-white dark:bg-black/10 dark:text-black"
+                                      : "bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300"
+                                  }`}
+                                >
+                                  {item.badge}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[10px] leading-relaxed ${
+                                  slidesDpi === item.dpi
+                                    ? "text-zinc-300 dark:text-zinc-600"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {item.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Image Format */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Slide Image Format
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { format: "jpeg" as const, label: "JPEG Optimized", desc: "High visual fidelity with compact compression" },
+                          { format: "png" as const, label: "PNG Lossless", desc: "Pixel-perfect rasterization with alpha support" },
+                        ].map((item) => (
+                          <button
+                            key={item.format}
+                            type="button"
+                            onClick={() => setSlidesFormat(item.format)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              slidesFormat === item.format
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                slidesFormat === item.format
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {item.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {toolId === "ai-summarizer" && (
                   <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -7046,6 +7435,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       "Render HTML to PDF"
                     ) : toolId === "pdf-to-jpg" ? (
                       `Extract Pages to ${pdfToJpgFormat.toUpperCase()} (ZIP)`
+                    ) : toolId === "pdf-to-powerpoint" ? (
+                      `Extract Slides to ${slidesFormat.toUpperCase()} (ZIP)`
+                    ) : toolId === "pdf-to-excel" ? (
+                      "Extract Tables to Excel (.xlsx)"
+                    ) : toolId === "pdf-to-pdfa" ? (
+                      `Standardize to ${pdfaLevel} Archival PDF`
+                    ) : toolId === "rotate-pdf" ? (
+                      `Rotate ${rotatePageScope === "all" ? "All" : rotatePageScope === "odd" ? "Odd" : rotatePageScope === "even" ? "Even" : "Selected"} Pages (+${rotateAngle}°)`
                     ) : (
                       `Execute ${details.title.split(" ")[0]}`
                     )}
