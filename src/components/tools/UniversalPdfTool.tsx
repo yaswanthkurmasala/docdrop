@@ -246,8 +246,9 @@ interface RemovePageItem {
 const getToolDetails = (id: string) => {
   switch (id) {
     case "split-pdf":
+      return { title: "Split PDF Document", desc: "Separate one page or a whole set for easy conversion into independent PDF files.", icon: Scissors, color: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50", accepts: ".pdf" };
     case "extract-pages":
-      return { title: "Split PDF Document", desc: "Extract specific pages or page ranges into an independent PDF file.", icon: Scissors, color: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50", accepts: ".pdf" };
+      return { title: "Extract PDF Pages", desc: "Select and extract specific pages into a brand new independent PDF document.", icon: Scissors, color: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50", accepts: ".pdf" };
     case "rotate-pdf":
       return { title: "Rotate PDF Pages", desc: "Change orientation of PDF pages permanently (90°, 180°, 270°).", icon: RotateCw, color: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50", accepts: ".pdf" };
     case "remove-pages":
