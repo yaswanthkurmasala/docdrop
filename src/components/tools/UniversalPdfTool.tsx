@@ -139,8 +139,26 @@ import {
 import { callGeminiAi } from "@/lib/gemini";
 import { getPdfPageCount } from "@/lib/pdf-tools/merge-pdf";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
-import { SignPdfStudio, type SignStudioConfig } from "@/components/tools/SignPdfStudio";
-import { CanvaPdfEditor } from "@/components/tools/CanvaPdfEditor";
+import dynamic from "next/dynamic";
+import { type SignStudioConfig } from "@/components/tools/SignPdfStudio";
+
+const SignPdfStudio = dynamic(
+  () => import("@/components/tools/SignPdfStudio").then((m) => m.SignPdfStudio),
+  { ssr: false }
+);
+
+const CanvaPdfEditor = dynamic(
+  () => import("@/components/tools/CanvaPdfEditor").then((m) => m.CanvaPdfEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-96 flex flex-col items-center justify-center bg-zinc-950 rounded-3xl text-zinc-400 gap-3 border border-zinc-800">
+        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-semibold">Loading Canva Live Editor Studio...</span>
+      </div>
+    ),
+  }
+);
 import { useAuth } from "@/context/AuthContext";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";

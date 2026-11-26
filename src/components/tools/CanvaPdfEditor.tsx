@@ -715,6 +715,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             disabled={historyIndex === 0}
             onClick={handleUndo}
             title="Undo (Ctrl+Z)"
+            aria-label="Undo (Ctrl+Z)"
             className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
           >
             <Undo className="w-4 h-4" />
@@ -724,6 +725,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             disabled={historyIndex >= history.length - 1}
             onClick={handleRedo}
             title="Redo (Ctrl+Y)"
+            aria-label="Redo (Ctrl+Y)"
             className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer transition-colors"
           >
             <Redo className="w-4 h-4" />
@@ -872,6 +874,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveFontSize((s) => Math.max(6, s - 1))}
+                  aria-label="Decrease font size"
                   className="px-2 py-0.5 hover:bg-zinc-800 rounded-md text-zinc-300 font-bold cursor-pointer"
                 >
                   -
@@ -880,6 +883,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveFontSize((s) => Math.min(72, s + 1))}
+                  aria-label="Increase font size"
                   className="px-2 py-0.5 hover:bg-zinc-800 rounded-md text-zinc-300 font-bold cursor-pointer"
                 >
                   +
@@ -897,6 +901,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                       : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                   title="Bold"
+                  aria-label="Toggle Bold"
                 >
                   <Bold className="w-3.5 h-3.5" />
                 </button>
@@ -909,6 +914,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                       : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
                   }`}
                   title="Italic"
+                  aria-label="Toggle Italic"
                 >
                   <Italic className="w-3.5 h-3.5" />
                 </button>
@@ -924,6 +930,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                       type="button"
                       onClick={() => setActiveTextColor(c.hex)}
                       title={c.label}
+                      aria-label={`Select color ${c.label}`}
                       style={{ backgroundColor: c.hex }}
                       className={`w-4 h-4 rounded-full border cursor-pointer transition-transform ${
                         activeTextColor.toLowerCase() === c.hex.toLowerCase()
@@ -1535,6 +1542,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
             title="Previous page"
+            aria-label="Previous page"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -1550,6 +1558,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
                 const val = parseInt(e.target.value, 10);
                 if (val >= 1 && val <= totalPages) setCurrentPage(val);
               }}
+              aria-label="Current page number"
               className="w-12 text-center py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-white font-bold text-xs focus:outline-hidden focus:ring-1 focus:ring-purple-500"
             />
             <span>of {totalPages}</span>
@@ -1561,6 +1570,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             className="p-1.5 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
             title="Next page"
+            aria-label="Next page"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -1584,6 +1594,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             onClick={() => setZoomScale((z) => Math.max(0.75, +(z - 0.25).toFixed(2)))}
             className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer"
             title="Zoom Out"
+            aria-label="Zoom Out"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
@@ -1596,6 +1607,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             onClick={() => setZoomScale((z) => Math.min(2.5, +(z + 0.25).toFixed(2)))}
             className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer"
             title="Zoom In"
+            aria-label="Zoom In"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
@@ -1604,6 +1616,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
             onClick={() => setZoomScale(1.25)}
             className="px-2 py-1 text-[11px] font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer"
             title="Reset Zoom"
+            aria-label="Reset Zoom"
           >
             Reset
           </button>
