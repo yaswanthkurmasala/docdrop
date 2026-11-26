@@ -109,12 +109,13 @@ export function CheckoutModal({
         throw new Error(data.error || "Failed to initialize payment session");
       }
 
-      // 2. Dynamically load Cashfree JS SDK v3
+      // 2. Dynamically load Cashfree JS SDK v3 (match server order session environment)
       const { load } = await import("@cashfreepayments/cashfree-js");
-      const mode =
-        process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT?.toLowerCase() === "production"
-          ? "production"
-          : "sandbox";
+      const rawEnv =
+        typeof data.environment === "string"
+          ? data.environment
+          : process.env.NEXT_PUBLIC_CASHFREE_ENVIRONMENT;
+      const mode = rawEnv?.toLowerCase() === "production" ? "production" : "sandbox";
 
       const cashfree = await load({ mode });
 
