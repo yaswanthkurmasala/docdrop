@@ -591,8 +591,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       }
       setOrganizePages(initial);
 
-      // Render thumbnails asynchronously in order
-      for (let i = 1; i <= Math.min(count, 50); i++) {
+      // Render all thumbnails progressively without arbitrary caps
+      for (let i = 1; i <= count; i++) {
         try {
           const p = await doc.getPage(i);
           const viewport = p.getViewport({ scale: 0.35 });
@@ -614,6 +614,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   : item
               )
             );
+          }
+          if (i % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         } catch {}
       }
@@ -723,7 +726,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         ]);
       }
 
-      for (let i = 1; i <= Math.min(count, 50); i++) {
+      for (let i = 1; i <= count; i++) {
         try {
           const p = await doc.getPage(i);
           const viewport = p.getViewport({ scale: 0.35 });
@@ -745,6 +748,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   : item
               )
             );
+          }
+          if (i % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         } catch {}
       }
@@ -857,7 +863,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       }
       setRemovePagesList(initial);
 
-      for (let i = 1; i <= Math.min(count, 50); i++) {
+      for (let i = 1; i <= count; i++) {
         try {
           const p = await doc.getPage(i);
           const viewport = p.getViewport({ scale: 0.35 });
@@ -879,6 +885,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                   : item
               )
             );
+          }
+          if (i % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
           }
         } catch {}
       }
@@ -906,7 +915,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       }
       setOcrPagesList(initial);
 
-      for (let i = 1; i <= Math.min(count, 50); i++) {
+      for (let i = 1; i <= count; i++) {
         try {
           const p = await doc.getPage(i);
           const textContent = await p.getTextContent();
@@ -948,6 +957,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 : item
             )
           );
+          if (i % 4 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 0));
+          }
         } catch {}
       }
     } catch (err) {
@@ -2846,8 +2858,12 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                                       className="w-full h-full object-contain"
                                     />
                                   ) : (
-                                    <div className="flex flex-col items-center gap-1 text-zinc-400">
-                                      <FileText className="w-6 h-6 stroke-1" />
+                                    <div className="flex flex-col items-center gap-1.5 text-zinc-400">
+                                      {isLoadingSplitThumbnails ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin text-zinc-500" />
+                                      ) : (
+                                        <FileText className="w-6 h-6 stroke-1" />
+                                      )}
                                       <span className="text-[11px] font-mono tnum">#{page.pageNum}</span>
                                     </div>
                                   )}
@@ -3292,8 +3308,12 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                                   }`}
                                 />
                               ) : (
-                                <div className="flex flex-col items-center gap-1 text-zinc-400">
-                                  <FileText className="w-6 h-6 stroke-1" />
+                                <div className="flex flex-col items-center gap-1.5 text-zinc-400">
+                                  {isLoadingRemoveThumbnails ? (
+                                    <RefreshCw className="w-4 h-4 animate-spin text-rose-500/70" />
+                                  ) : (
+                                    <FileText className="w-6 h-6 stroke-1 text-zinc-400" />
+                                  )}
                                   <span className="text-[11px] font-mono tnum">#{page.pageNum}</span>
                                 </div>
                               )}
@@ -5635,7 +5655,11 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                                 />
                               ) : (
                                 <div className="text-center space-y-1">
-                                  <FileText className="w-6 h-6 text-zinc-400 mx-auto" />
+                                  {isLoadingThumbnails ? (
+                                    <RefreshCw className="w-5 h-5 text-rose-500/70 animate-spin mx-auto" />
+                                  ) : (
+                                    <FileText className="w-6 h-6 text-zinc-400 mx-auto" />
+                                  )}
                                   <span className="text-[11px] font-mono text-zinc-500">Page {page.origIndex + 1}</span>
                                 </div>
                               )}
@@ -6456,6 +6480,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                               <div className="aspect-[3/4] bg-zinc-100 dark:bg-zinc-800 rounded-lg overflow-hidden relative flex items-center justify-center">
                                 {item.thumbnailUrl ? (
                                   <img src={item.thumbnailUrl} alt={`Page ${item.pageNum}`} className="w-full h-full object-contain" />
+                                ) : isLoadingOcrThumbnails ? (
+                                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-500/70" />
                                 ) : (
                                   <FileText className="w-6 h-6 text-zinc-400" />
                                 )}
