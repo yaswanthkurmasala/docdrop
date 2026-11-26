@@ -21,6 +21,7 @@ import {
   redactPdf,
   organizePdfPages,
   annotatePdf,
+  applyLivePdfEdits,
   inspectAndFlattenPdfForms,
   comparePdf,
   aiSummarizePdf,
@@ -505,6 +506,66 @@ async function runCompleteSuiteTest() {
     });
     if (advancedRes.stampsApplied !== 4 || advancedRes.pagesAnnotated.length !== 4) {
       throw new Error(`Failed advanced multi-page annotatePdf: ${advancedRes.summary}`);
+    }
+  });
+
+  await check("Canva Live PDF Editor (In-Place Text Replacement & Elements)", async () => {
+    const liveRes = await applyLivePdfEdits(samplePdf, {
+      textEdits: [
+        {
+          id: "span-1",
+          pageIndex: 0,
+          originalStr: "Quarterly Report",
+          newStr: "Annual Executive Summary",
+          x: 50,
+          y: 700,
+          width: 150,
+          height: 24,
+          fontSize: 24,
+          fontFamily: "Helvetica",
+          isBold: true,
+          isItalic: false,
+          color: "#1E3A8A",
+        },
+      ],
+      addedTexts: [
+        {
+          id: "add-1",
+          pageIndex: 0,
+          text: "CONFIDENTIAL DRAFT",
+          x: 50,
+          y: 650,
+          fontSize: 14,
+          fontFamily: "Helvetica",
+          isBold: false,
+          isItalic: true,
+          color: "#DC2626",
+        },
+      ],
+      whiteouts: [
+        {
+          id: "whiteout-1",
+          pageIndex: 0,
+          x: 200,
+          y: 600,
+          width: 100,
+          height: 40,
+        },
+      ],
+      highlights: [
+        {
+          id: "highlight-1",
+          pageIndex: 0,
+          x: 50,
+          y: 500,
+          width: 200,
+          height: 20,
+          color: "#FEF08A",
+        },
+      ],
+    });
+    if (liveRes.totalPages !== 4 || liveRes.totalEditsCount !== 4 || !liveRes.pdfBytes) {
+      throw new Error(`Failed applyLivePdfEdits: ${liveRes.summary}`);
     }
   });
 

@@ -140,6 +140,7 @@ import { callGeminiAi } from "@/lib/gemini";
 import { getPdfPageCount } from "@/lib/pdf-tools/merge-pdf";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { SignPdfStudio, type SignStudioConfig } from "@/components/tools/SignPdfStudio";
+import { CanvaPdfEditor } from "@/components/tools/CanvaPdfEditor";
 import { useAuth } from "@/context/AuthContext";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
@@ -298,7 +299,7 @@ const getToolDetails = (id: string) => {
     case "pdf-to-powerpoint":
       return { title: "Convert PDF to Slides (ZIP)", desc: "Extract slide images and decks from PDF for presentation editing.", icon: Presentation, color: "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50", accepts: ".pdf" };
     case "edit-pdf":
-      return { title: "Edit PDF Document", desc: "Add text notes, shapes, and annotations directly to your PDF pages.", icon: PenTool, color: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50", accepts: ".pdf" };
+      return { title: "Canva PDF Live Editor Studio", desc: "Click and edit any word in your PDF with exact matching fonts, plus text boxes, whiteout eraser, and highlights.", icon: PenTool, color: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50", accepts: ".pdf" };
     case "pdf-forms":
       return { title: "Fill PDF Forms", desc: "Fill interactive PDF form fields, checkboxes, and text inputs securely in-browser.", icon: FileText, color: "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50", accepts: ".pdf" };
     case "protect-pdf":
@@ -546,6 +547,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [annotationOpacity, setAnnotationOpacity] = useState<number>(0.95);
   const [annotationIncludeDate, setAnnotationIncludeDate] = useState<boolean>(true);
   const [annotationActivePreset, setAnnotationActivePreset] = useState<string>("approved");
+  const [editPdfEditorMode, setEditPdfEditorMode] = useState<"canva" | "stamps">("canva");
   const [annotatePreviewThumbnail, setAnnotatePreviewThumbnail] = useState<string | null>(null);
   const [isLoadingAnnotateThumbnail, setIsLoadingAnnotateThumbnail] = useState(false);
   const [annotateProgress, setAnnotateProgress] = useState<{ percent: number; message: string } | null>(null);
@@ -5750,464 +5752,512 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
                 {toolId === "edit-pdf" && (
                   <div className="space-y-4 text-left">
-                    {/* Header Presets Bar */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
-                          <Stamp className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                          Certified Stamp Presets
-                        </label>
-                        <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
-                          One-click official presets
-                        </span>
+                    {/* Mode Selector Tabs: Canva Live Studio vs Official Stamp Presets */}
+                    <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditPdfEditorMode("canva")}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            editPdfEditorMode === "canva"
+                              ? "bg-purple-600 text-white shadow-md shadow-purple-600/30 ring-1 ring-purple-400/40"
+                              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Canva Live Editor Studio</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/30 text-purple-100 font-extrabold uppercase tracking-wider">
+                            Live
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditPdfEditorMode("stamps")}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            editPdfEditorMode === "stamps"
+                              ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-md"
+                              : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          <Stamp className="w-3.5 h-3.5" />
+                          <span>Certified Stamp Presets</span>
+                        </button>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                        {ANNOTATE_PRESETS.map((preset) => {
-                          const isActive = annotationActivePreset === preset.id;
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => {
-                                setAnnotationActivePreset(preset.id);
-                                setAnnotationText(preset.text);
-                                setAnnotationSubtitle(preset.subtitle);
-                                setAnnotationTone(preset.tone);
-                                setAnnotationStyle(preset.style);
-                                setAnnotationRotation(preset.rotation);
-                              }}
-                              className={`p-2 rounded-xl text-left transition-all border cursor-pointer ${
-                                isActive
-                                  ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/80 shadow-xs ring-1 ring-purple-500/30"
-                                  : "bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-bold text-zinc-900 dark:text-white line-clamp-1">
-                                  {preset.name}
-                                </span>
-                                {isActive && <Check className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />}
-                              </div>
-                              <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate mt-0.5">
-                                {preset.text}
-                              </div>
-                            </button>
-                          );
-                        })}
+
+                      <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 pr-2 hidden md:flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>100% Client-Side In-Memory • Zero Cloud Upload</span>
                       </div>
                     </div>
 
-                    {/* Main Visualizer + Controls 2-Column Split */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1">
-                      {/* Left: Interactive Live Page Placement Preview */}
-                      <div className="lg:col-span-5 flex flex-col items-center justify-between p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
-                        <div className="w-full flex items-center justify-between text-xs pb-2.5 mb-2 border-b border-zinc-200/70 dark:border-zinc-800">
-                          <span className="font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <Layers className="w-3.5 h-3.5 text-zinc-500" />
-                            Live Stamp Placement
-                          </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium">
-                            {annotationScope === "all" ? "All Pages" : annotationScope === "first" ? "Page 1" : annotationScope === "last" ? "End Page" : `Pages ${annotationCustomPages}`}
-                          </span>
-                        </div>
-
-                        {/* Simulated A4 Paper Canvas */}
-                        <div className="relative w-full max-w-[240px] aspect-[1/1.414] bg-white rounded-xl shadow-md border border-zinc-300/80 overflow-hidden select-none my-1 flex flex-col justify-between p-3.5">
-                          {/* Background document thumbnail or simulated lines */}
-                          {annotatePreviewThumbnail ? (
-                            <img
-                              src={annotatePreviewThumbnail}
-                              alt="Document Page 1"
-                              className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 p-3 flex flex-col gap-1.5 pointer-events-none opacity-30">
-                              <div className="h-2 w-2/3 bg-zinc-400 rounded-xs mb-2" />
-                              <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
-                              <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
-                              <div className="h-1.5 w-4/5 bg-zinc-300 rounded-xs mb-2" />
-                              <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
-                              <div className="h-1.5 w-11/12 bg-zinc-300 rounded-xs" />
-                              <div className="h-1.5 w-3/4 bg-zinc-300 rounded-xs" />
-                            </div>
-                          )}
-
-                          {/* Dynamic Overlaid Stamp Badge */}
-                          <div
-                            className={`absolute z-10 transition-all duration-150 ${
-                              annotationPosition === "top-left"
-                                ? "top-2.5 left-2.5"
-                                : annotationPosition === "top-center"
-                                ? "top-2.5 left-1/2 -translate-x-1/2"
-                                : annotationPosition === "top-right"
-                                ? "top-2.5 right-2.5"
-                                : annotationPosition === "middle-left"
-                                ? "top-1/2 -translate-y-1/2 left-2.5"
-                                : annotationPosition === "center"
-                                ? "top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2"
-                                : annotationPosition === "middle-right"
-                                ? "top-1/2 -translate-y-1/2 right-2.5"
-                                : annotationPosition === "bottom-left"
-                                ? "bottom-2.5 left-2.5"
-                                : annotationPosition === "bottom-center"
-                                ? "bottom-2.5 left-1/2 -translate-x-1/2"
-                                : "bottom-2.5 right-2.5"
-                            }`}
-                            style={{
-                              transform: `rotate(${annotationRotation}deg)`,
-                              opacity: annotationOpacity,
-                            }}
-                          >
-                            {/* Visual Render according to style & tone */}
-                            {annotationStyle === "rubber_stamp" ? (
-                              <div
-                                className={`border-[1.75px] rounded-md p-0.5 shadow-xs ${
-                                  annotationTone === "approved"
-                                    ? "border-emerald-600 bg-emerald-50/90 text-emerald-800"
-                                    : annotationTone === "rejected"
-                                    ? "border-red-600 bg-red-50/90 text-red-800"
-                                    : annotationTone === "note"
-                                    ? "border-blue-600 bg-blue-50/90 text-blue-800"
-                                    : annotationTone === "warning"
-                                    ? "border-amber-600 bg-amber-50/90 text-amber-800"
-                                    : annotationTone === "review"
-                                    ? "border-purple-600 bg-purple-50/90 text-purple-800"
-                                    : "border-zinc-700 bg-zinc-100/90 text-zinc-800"
-                                }`}
-                              >
-                                <div className="border border-current px-2 py-0.5 text-center">
-                                  <div className="text-[11px] font-black uppercase tracking-wider leading-none">
-                                    {annotationText || "APPROVED"}
-                                  </div>
-                                  {(annotationSubtitle || annotationIncludeDate) && (
-                                    <div className="text-[11px] font-bold uppercase tracking-tight mt-0.5 opacity-80 leading-none">
-                                      {annotationSubtitle || (annotationIncludeDate ? `DOCDROP • ${new Date().toISOString().slice(0, 10)}` : "")}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ) : annotationStyle === "callout_box" ? (
-                              <div
-                                className={`border-l-4 border rounded-md p-1.5 shadow-xs text-left ${
-                                  annotationTone === "approved"
-                                    ? "border-l-emerald-600 border-zinc-200 bg-emerald-50/90 text-emerald-800"
-                                    : annotationTone === "rejected"
-                                    ? "border-l-red-600 border-zinc-200 bg-red-50/90 text-red-800"
-                                    : annotationTone === "note"
-                                    ? "border-l-blue-600 border-zinc-200 bg-blue-50/90 text-blue-800"
-                                    : annotationTone === "warning"
-                                    ? "border-l-amber-600 border-zinc-200 bg-amber-50/90 text-amber-800"
-                                    : annotationTone === "review"
-                                    ? "border-l-purple-600 border-zinc-200 bg-purple-50/90 text-purple-800"
-                                    : "border-l-zinc-700 border-zinc-200 bg-zinc-100/90 text-zinc-800"
-                                }`}
-                              >
-                                <div className="text-[11px] font-bold uppercase leading-tight">
-                                  {annotationText || "AUDIT NOTE"}
-                                </div>
-                                {(annotationSubtitle || annotationIncludeDate) && (
-                                  <div className="text-[11px] text-zinc-600 mt-0.5 leading-tight">
-                                    {annotationSubtitle || (annotationIncludeDate ? `Logged on ${new Date().toISOString().slice(0, 10)}` : "")}
-                                  </div>
-                                )}
-                              </div>
-                            ) : annotationStyle === "banner_diagonal" ? (
-                              <div
-                                className={`px-2.5 py-0.5 rounded-xs text-center text-white shadow-xs ${
-                                  annotationTone === "approved"
-                                    ? "bg-emerald-600"
-                                    : annotationTone === "rejected"
-                                    ? "bg-red-600"
-                                    : annotationTone === "note"
-                                    ? "bg-blue-600"
-                                    : annotationTone === "warning"
-                                    ? "bg-amber-600"
-                                    : annotationTone === "review"
-                                    ? "bg-purple-600"
-                                    : "bg-zinc-800"
-                                }`}
-                              >
-                                <div className="text-[11px] font-black uppercase tracking-wider leading-none">
-                                  {annotationText || "CONFIDENTIAL"}
-                                </div>
-                              </div>
-                            ) : (
-                              /* Modern Badge Pill */
-                              <div
-                                className={`rounded-full border-[1.5px] px-2.5 py-1 text-center shadow-xs ${
-                                  annotationTone === "approved"
-                                    ? "border-emerald-600 bg-emerald-50/95 text-emerald-800"
-                                    : annotationTone === "rejected"
-                                    ? "border-red-600 bg-red-50/95 text-red-800"
-                                    : annotationTone === "note"
-                                    ? "border-blue-600 bg-blue-50/95 text-blue-800"
-                                    : annotationTone === "warning"
-                                    ? "border-amber-600 bg-amber-50/95 text-amber-800"
-                                    : annotationTone === "review"
-                                    ? "border-purple-600 bg-purple-50/95 text-purple-800"
-                                    : "border-zinc-700 bg-zinc-100/95 text-zinc-800"
-                                }`}
-                              >
-                                <div className="text-[11px] font-bold uppercase leading-none">
-                                  {annotationText || "APPROVED"}
-                                </div>
-                                {(annotationSubtitle || annotationIncludeDate) && (
-                                  <div className="text-[11px] font-medium opacity-80 mt-0.5 leading-none">
-                                    {annotationSubtitle || (annotationIncludeDate ? `DOCDROP • ${new Date().toISOString().slice(0, 10)}` : "")}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Stamp metadata readout */}
-                        <div className="w-full text-center mt-2 pt-2 border-t border-zinc-200/70 dark:border-zinc-800">
-                          <span className="text-[11px] text-zinc-600 dark:text-zinc-400 font-mono">
-                            Position: {annotationPosition} • Angle: {annotationRotation}° • Opacity: {Math.round(annotationOpacity * 100)}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Right: Detailed Configuration Panel */}
-                      <div className="lg:col-span-7 space-y-3.5">
-                        {/* Stamp Text & Subtitle */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Primary Stamp Text
+                    {editPdfEditorMode === "canva" && file ? (
+                      <CanvaPdfEditor
+                        file={file}
+                        onSave={(res) => {
+                          setResult({
+                            pdfBytes: res.pdfBytes,
+                            fileName: res.fileName,
+                            meta: `${res.summary} (100% In-Browser Memory)`,
+                            type: "pdf",
+                          });
+                        }}
+                        onCancel={() => setFile(null)}
+                      />
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Header Presets Bar */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                              <Stamp className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                              Certified Stamp Presets
                             </label>
-                            <input
-                              type="text"
-                              value={annotationText}
-                              onChange={(e) => setAnnotationText(e.target.value)}
-                              placeholder="APPROVED FOR PRODUCTION"
-                              className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-xs font-bold focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
-                            />
-                            {/* Quick words */}
-                            <div className="flex flex-wrap gap-1 pt-0.5">
-                              {["APPROVED", "CONFIDENTIAL", "FINAL DRAFT", "URGENT"].map((w) => (
-                                <button
-                                  key={w}
-                                  type="button"
-                                  onClick={() => setAnnotationText(w)}
-                                  className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-medium cursor-pointer"
-                                >
-                                  {w}
-                                </button>
-                              ))}
-                            </div>
+                            <span className="text-[11px] text-zinc-600 dark:text-zinc-400">
+                              One-click official presets
+                            </span>
                           </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                            {ANNOTATE_PRESETS.map((preset) => {
+                              const isActive = annotationActivePreset === preset.id;
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setAnnotationActivePreset(preset.id);
+                                    setAnnotationText(preset.text);
+                                    setAnnotationSubtitle(preset.subtitle);
+                                    setAnnotationTone(preset.tone);
+                                    setAnnotationStyle(preset.style);
+                                    setAnnotationRotation(preset.rotation);
+                                  }}
+                                  className={`p-2 rounded-xl text-left transition-all border cursor-pointer ${
+                                    isActive
+                                      ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500/80 shadow-xs ring-1 ring-purple-500/30"
+                                      : "bg-white dark:bg-zinc-900 border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-bold text-zinc-900 dark:text-white line-clamp-1">
+                                      {preset.name}
+                                    </span>
+                                    {isActive && <Check className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />}
+                                  </div>
+                                  <div className="text-[11px] text-zinc-600 dark:text-zinc-400 truncate mt-0.5">
+                                    {preset.text}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                Subtitle / Notice
-                              </label>
-                              <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={annotationIncludeDate}
-                                  onChange={(e) => setAnnotationIncludeDate(e.target.checked)}
-                                  className="w-3 h-3 rounded-xs text-purple-600"
+                        {/* Main Visualizer + Controls 2-Column Split */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1">
+                          {/* Left: Interactive Live Page Placement Preview */}
+                          <div className="lg:col-span-5 flex flex-col items-center justify-between p-4 rounded-2xl bg-zinc-100 dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800">
+                            <div className="w-full flex items-center justify-between text-xs pb-2.5 mb-2 border-b border-zinc-200/70 dark:border-zinc-800">
+                              <span className="font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                                <Layers className="w-3.5 h-3.5 text-zinc-500" />
+                                Live Stamp Placement
+                              </span>
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium">
+                                {annotationScope === "all" ? "All Pages" : annotationScope === "first" ? "Page 1" : annotationScope === "last" ? "End Page" : `Pages ${annotationCustomPages}`}
+                              </span>
+                            </div>
+
+                            {/* Simulated A4 Paper Canvas */}
+                            <div className="relative w-full max-w-[240px] aspect-[1/1.414] bg-white rounded-xl shadow-md border border-zinc-300/80 overflow-hidden select-none my-1 flex flex-col justify-between p-3.5">
+                              {/* Background document thumbnail or simulated lines */}
+                              {annotatePreviewThumbnail ? (
+                                <img
+                                  src={annotatePreviewThumbnail}
+                                  alt="Document Page 1"
+                                  className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-80"
                                 />
-                                <span>Add Date</span>
-                              </label>
-                            </div>
-                            <input
-                              type="text"
-                              value={annotationSubtitle}
-                              onChange={(e) => setAnnotationSubtitle(e.target.value)}
-                              placeholder="DOCDROP AUDIT COMPLIANT"
-                              className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-xs font-medium focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
-                            />
-                          </div>
-                        </div>
+                              ) : (
+                                <div className="absolute inset-0 p-3 flex flex-col gap-1.5 pointer-events-none opacity-30">
+                                  <div className="h-2 w-2/3 bg-zinc-400 rounded-xs mb-2" />
+                                  <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
+                                  <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
+                                  <div className="h-1.5 w-4/5 bg-zinc-300 rounded-xs mb-2" />
+                                  <div className="h-1.5 w-full bg-zinc-300 rounded-xs" />
+                                  <div className="h-1.5 w-11/12 bg-zinc-300 rounded-xs" />
+                                  <div className="h-1.5 w-3/4 bg-zinc-300 rounded-xs" />
+                                </div>
+                              )}
 
-                        {/* Stamp Style & Color Tone */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {/* Style */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Stamp Visual Style
-                            </label>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {[
-                                { id: "rubber_stamp", label: "Rubber Stamp" },
-                                { id: "badge", label: "Pill Badge" },
-                                { id: "callout_box", label: "Audit Callout" },
-                                { id: "banner_diagonal", label: "Corner Banner" },
-                              ].map((style) => (
-                                <button
-                                  key={style.id}
-                                  type="button"
-                                  onClick={() => setAnnotationStyle(style.id as any)}
-                                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
-                                    annotationStyle === style.id
-                                      ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  {style.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Tone Palette */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Status Color Palette
-                            </label>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {[
-                                { id: "approved", label: "Approved", dot: "bg-emerald-500" },
-                                { id: "rejected", label: "Rejected", dot: "bg-red-500" },
-                                { id: "note", label: "Official", dot: "bg-blue-500" },
-                                { id: "confidential", label: "Private", dot: "bg-zinc-600" },
-                                { id: "warning", label: "Draft", dot: "bg-amber-500" },
-                                { id: "review", label: "Review", dot: "bg-purple-500" },
-                              ].map((tone) => (
-                                <button
-                                  key={tone.id}
-                                  type="button"
-                                  onClick={() => setAnnotationTone(tone.id as any)}
-                                  className={`py-1 px-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                    annotationTone === tone.id
-                                      ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
-                                      : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full ${tone.dot}`} />
-                                  <span>{tone.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Interactive 3x3 Grid Placement & Page Scope */}
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                          {/* 3x3 Placement Grid */}
-                          <div className="sm:col-span-5 space-y-1">
-                            <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                              Placement Position (9-Grid)
-                            </label>
-                            <div className="grid grid-cols-3 gap-1 max-w-[160px]">
-                              {[
-                                { pos: "top-left", label: "TL" },
-                                { pos: "top-center", label: "TC" },
-                                { pos: "top-right", label: "TR" },
-                                { pos: "middle-left", label: "ML" },
-                                { pos: "center", label: "C" },
-                                { pos: "middle-right", label: "MR" },
-                                { pos: "bottom-left", label: "BL" },
-                                { pos: "bottom-center", label: "BC" },
-                                { pos: "bottom-right", label: "BR" },
-                              ].map((item) => (
-                                <button
-                                  key={item.pos}
-                                  type="button"
-                                  onClick={() => setAnnotationPosition(item.pos as any)}
-                                  className={`h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                                    annotationPosition === item.pos
-                                      ? "bg-purple-600 text-white shadow-xs ring-1 ring-purple-600"
-                                      : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                  }`}
-                                >
-                                  {item.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Page Scope & Rotation */}
-                          <div className="sm:col-span-7 space-y-2">
-                            <div className="space-y-1">
-                              <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                Target Pages
-                              </label>
-                              <div className="grid grid-cols-2 gap-1">
-                                {[
-                                  { id: "all", label: "All Pages" },
-                                  { id: "first", label: "Cover (1st)" },
-                                  { id: "last", label: "Last Page" },
-                                  { id: "custom", label: "Custom Range" },
-                                ].map((s) => (
-                                  <button
-                                    key={s.id}
-                                    type="button"
-                                    onClick={() => setAnnotationScope(s.id as any)}
-                                    className={`py-1 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
-                                      annotationScope === s.id
-                                        ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-xs"
-                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                              {/* Dynamic Overlaid Stamp Badge */}
+                              <div
+                                className={`absolute z-10 transition-all duration-150 ${
+                                  annotationPosition === "top-left"
+                                    ? "top-2.5 left-2.5"
+                                    : annotationPosition === "top-center"
+                                    ? "top-2.5 left-1/2 -translate-x-1/2"
+                                    : annotationPosition === "top-right"
+                                    ? "top-2.5 right-2.5"
+                                    : annotationPosition === "middle-left"
+                                    ? "top-1/2 -translate-y-1/2 left-2.5"
+                                    : annotationPosition === "center"
+                                    ? "top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2"
+                                    : annotationPosition === "middle-right"
+                                    ? "top-1/2 -translate-y-1/2 right-2.5"
+                                    : annotationPosition === "bottom-left"
+                                    ? "bottom-2.5 left-2.5"
+                                    : annotationPosition === "bottom-center"
+                                    ? "bottom-2.5 left-1/2 -translate-x-1/2"
+                                    : "bottom-2.5 right-2.5"
+                                }`}
+                                style={{
+                                  transform: `rotate(${annotationRotation}deg)`,
+                                  opacity: annotationOpacity,
+                                }}
+                              >
+                                {annotationStyle === "rubber_stamp" ? (
+                                  <div
+                                    className={`border-[1.75px] rounded-md p-0.5 shadow-xs ${
+                                      annotationTone === "approved"
+                                        ? "border-emerald-600 bg-emerald-50/90 text-emerald-800"
+                                        : annotationTone === "rejected"
+                                        ? "border-red-600 bg-red-50/90 text-red-800"
+                                        : annotationTone === "note"
+                                        ? "border-blue-600 bg-blue-50/90 text-blue-800"
+                                        : annotationTone === "warning"
+                                        ? "border-amber-600 bg-amber-50/90 text-amber-800"
+                                        : annotationTone === "review"
+                                        ? "border-purple-600 bg-purple-50/90 text-purple-800"
+                                        : "border-zinc-700 bg-zinc-100/90 text-zinc-800"
                                     }`}
                                   >
-                                    {s.label}
-                                  </button>
-                                ))}
+                                    <div className="border border-current px-2 py-0.5 text-center">
+                                      <div className="text-[11px] font-black uppercase tracking-wider leading-none">
+                                        {annotationText || "APPROVED"}
+                                      </div>
+                                      {(annotationSubtitle || annotationIncludeDate) && (
+                                        <div className="text-[11px] font-bold uppercase tracking-tight mt-0.5 opacity-80 leading-none">
+                                          {annotationSubtitle || (annotationIncludeDate ? `DOCDROP • ${new Date().toISOString().slice(0, 10)}` : "")}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : annotationStyle === "callout_box" ? (
+                                  <div
+                                    className={`border-l-4 border rounded-md p-1.5 shadow-xs text-left ${
+                                      annotationTone === "approved"
+                                        ? "border-l-emerald-600 border-zinc-200 bg-emerald-50/90 text-emerald-800"
+                                        : annotationTone === "rejected"
+                                        ? "border-l-red-600 border-zinc-200 bg-red-50/90 text-red-800"
+                                        : annotationTone === "note"
+                                        ? "border-l-blue-600 border-zinc-200 bg-blue-50/90 text-blue-800"
+                                        : annotationTone === "warning"
+                                        ? "border-l-amber-600 border-zinc-200 bg-amber-50/90 text-amber-800"
+                                        : annotationTone === "review"
+                                        ? "border-l-purple-600 border-zinc-200 bg-purple-50/90 text-purple-800"
+                                        : "border-l-zinc-700 border-zinc-200 bg-zinc-100/90 text-zinc-800"
+                                    }`}
+                                  >
+                                    <div className="text-[11px] font-bold uppercase leading-tight">
+                                      {annotationText || "AUDIT NOTE"}
+                                    </div>
+                                    {(annotationSubtitle || annotationIncludeDate) && (
+                                      <div className="text-[11px] text-zinc-600 mt-0.5 leading-tight">
+                                        {annotationSubtitle || (annotationIncludeDate ? `Logged on ${new Date().toISOString().slice(0, 10)}` : "")}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : annotationStyle === "banner_diagonal" ? (
+                                  <div
+                                    className={`px-2.5 py-0.5 rounded-xs text-center text-white shadow-xs ${
+                                      annotationTone === "approved"
+                                        ? "bg-emerald-600"
+                                        : annotationTone === "rejected"
+                                        ? "bg-red-600"
+                                        : annotationTone === "note"
+                                        ? "bg-blue-600"
+                                        : annotationTone === "warning"
+                                        ? "bg-amber-600"
+                                        : annotationTone === "review"
+                                        ? "bg-purple-600"
+                                        : "bg-zinc-800"
+                                    }`}
+                                  >
+                                    <div className="text-[11px] font-black uppercase tracking-wider leading-none">
+                                      {annotationText || "CONFIDENTIAL"}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className={`rounded-full border-[1.5px] px-2.5 py-1 text-center shadow-xs ${
+                                      annotationTone === "approved"
+                                        ? "border-emerald-600 bg-emerald-50/95 text-emerald-800"
+                                        : annotationTone === "rejected"
+                                        ? "border-red-600 bg-red-50/95 text-red-800"
+                                        : annotationTone === "note"
+                                        ? "border-blue-600 bg-blue-50/95 text-blue-800"
+                                        : annotationTone === "warning"
+                                        ? "border-amber-600 bg-amber-50/95 text-amber-800"
+                                        : annotationTone === "review"
+                                        ? "border-purple-600 bg-purple-50/95 text-purple-800"
+                                        : "border-zinc-700 bg-zinc-100/95 text-zinc-800"
+                                    }`}
+                                  >
+                                    <div className="text-[11px] font-bold uppercase leading-none">
+                                      {annotationText || "APPROVED"}
+                                    </div>
+                                    {(annotationSubtitle || annotationIncludeDate) && (
+                                      <div className="text-[11px] font-medium opacity-80 mt-0.5 leading-none">
+                                        {annotationSubtitle || (annotationIncludeDate ? `DOCDROP • ${new Date().toISOString().slice(0, 10)}` : "")}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                              {annotationScope === "custom" && (
+                            </div>
+
+                            {/* Stamp metadata readout */}
+                            <div className="w-full text-center mt-2 pt-2 border-t border-zinc-200/70 dark:border-zinc-800">
+                              <span className="text-[11px] text-zinc-600 dark:text-zinc-400 font-mono">
+                                Position: {annotationPosition} • Angle: {annotationRotation}° • Opacity: {Math.round(annotationOpacity * 100)}%
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Right: Detailed Configuration Panel */}
+                          <div className="lg:col-span-7 space-y-3.5">
+                            {/* Stamp Text & Subtitle */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                  Primary Stamp Text
+                                </label>
                                 <input
                                   type="text"
-                                  value={annotationCustomPages}
-                                  onChange={(e) => setAnnotationCustomPages(e.target.value)}
-                                  placeholder="e.g. 1-2, 4"
-                                  className="w-full mt-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs font-mono"
+                                  value={annotationText}
+                                  onChange={(e) => setAnnotationText(e.target.value)}
+                                  placeholder="APPROVED FOR PRODUCTION"
+                                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-xs font-bold focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
                                 />
-                              )}
+                                <div className="flex flex-wrap gap-1 pt-0.5">
+                                  {["APPROVED", "CONFIDENTIAL", "FINAL DRAFT", "URGENT"].map((w) => (
+                                    <button
+                                      key={w}
+                                      type="button"
+                                      onClick={() => setAnnotationText(w)}
+                                      className="text-[11px] px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-medium cursor-pointer"
+                                    >
+                                      {w}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                    Subtitle / Notice
+                                  </label>
+                                  <label className="flex items-center gap-1 text-[11px] text-zinc-600 dark:text-zinc-400 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={annotationIncludeDate}
+                                      onChange={(e) => setAnnotationIncludeDate(e.target.checked)}
+                                      className="w-3 h-3 rounded-xs text-purple-600"
+                                    />
+                                    <span>Add Date</span>
+                                  </label>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={annotationSubtitle}
+                                  onChange={(e) => setAnnotationSubtitle(e.target.value)}
+                                  placeholder="DOCDROP AUDIT COMPLIANT"
+                                  className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-xs font-medium focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
+                                />
+                              </div>
                             </div>
 
-                            {/* Angle Presets */}
-                            <div className="space-y-1 pt-1">
+                            {/* Stamp Style & Color Tone */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                  Stamp Visual Style
+                                </label>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {[
+                                    { id: "rubber_stamp", label: "Rubber Stamp" },
+                                    { id: "badge", label: "Pill Badge" },
+                                    { id: "callout_box", label: "Audit Callout" },
+                                    { id: "banner_diagonal", label: "Corner Banner" },
+                                  ].map((style) => (
+                                    <button
+                                      key={style.id}
+                                      type="button"
+                                      onClick={() => setAnnotationStyle(style.id as any)}
+                                      className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                                        annotationStyle === style.id
+                                          ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
+                                          : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                                      }`}
+                                    >
+                                      {style.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                  Status Color Palette
+                                </label>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {[
+                                    { id: "approved", label: "Approved", dot: "bg-emerald-500" },
+                                    { id: "rejected", label: "Rejected", dot: "bg-red-500" },
+                                    { id: "note", label: "Official", dot: "bg-blue-500" },
+                                    { id: "confidential", label: "Private", dot: "bg-zinc-600" },
+                                    { id: "warning", label: "Draft", dot: "bg-amber-500" },
+                                    { id: "review", label: "Review", dot: "bg-purple-500" },
+                                  ].map((tone) => (
+                                    <button
+                                      key={tone.id}
+                                      type="button"
+                                      onClick={() => setAnnotationTone(tone.id as any)}
+                                      className={`py-1 px-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                        annotationTone === tone.id
+                                          ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs"
+                                          : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                                      }`}
+                                    >
+                                      <span className={`w-2 h-2 rounded-full ${tone.dot}`} />
+                                      <span>{tone.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Interactive 3x3 Grid Placement & Page Scope */}
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                              <div className="sm:col-span-5 space-y-1">
+                                <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                  Placement Position (9-Grid)
+                                </label>
+                                <div className="grid grid-cols-3 gap-1 max-w-[160px]">
+                                  {[
+                                    { pos: "top-left", label: "TL" },
+                                    { pos: "top-center", label: "TC" },
+                                    { pos: "top-right", label: "TR" },
+                                    { pos: "middle-left", label: "ML" },
+                                    { pos: "center", label: "C" },
+                                    { pos: "middle-right", label: "MR" },
+                                    { pos: "bottom-left", label: "BL" },
+                                    { pos: "bottom-center", label: "BC" },
+                                    { pos: "bottom-right", label: "BR" },
+                                  ].map((item) => (
+                                    <button
+                                      key={item.pos}
+                                      type="button"
+                                      onClick={() => setAnnotationPosition(item.pos as any)}
+                                      className={`h-7 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                                        annotationPosition === item.pos
+                                          ? "bg-purple-600 text-white shadow-xs ring-1 ring-purple-600"
+                                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                      }`}
+                                    >
+                                      {item.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="sm:col-span-7 space-y-2">
+                                <div className="space-y-1">
+                                  <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                    Target Pages
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    {[
+                                      { id: "all", label: "All Pages" },
+                                      { id: "first", label: "Cover (1st)" },
+                                      { id: "last", label: "Last Page" },
+                                      { id: "custom", label: "Custom Range" },
+                                    ].map((s) => (
+                                      <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => setAnnotationScope(s.id as any)}
+                                        className={`py-1 px-2 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                                          annotationScope === s.id
+                                            ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-xs"
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        }`}
+                                      >
+                                        {s.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {annotationScope === "custom" && (
+                                    <input
+                                      type="text"
+                                      value={annotationCustomPages}
+                                      onChange={(e) => setAnnotationCustomPages(e.target.value)}
+                                      placeholder="e.g. 1-2, 4"
+                                      className="w-full mt-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs font-mono"
+                                    />
+                                  )}
+                                </div>
+
+                                <div className="space-y-1 pt-1">
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-bold text-zinc-800 dark:text-zinc-200">Rotation Angle</span>
+                                    <span className="font-mono text-[11px] text-zinc-500">{annotationRotation}°</span>
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-1">
+                                    {[
+                                      { deg: 0, label: "0°" },
+                                      { deg: -12, label: "-12°" },
+                                      { deg: 15, label: "+15°" },
+                                      { deg: -45, label: "-45°" },
+                                    ].map((item) => (
+                                      <button
+                                        key={item.deg}
+                                        type="button"
+                                        onClick={() => setAnnotationRotation(item.deg)}
+                                        className={`py-1 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
+                                          annotationRotation === item.deg
+                                            ? "bg-purple-600 text-white shadow-xs"
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        }`}
+                                      >
+                                        {item.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Opacity Slider */}
+                            <div className="space-y-1 pt-1 border-t border-zinc-100 dark:border-zinc-800">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="font-bold text-zinc-800 dark:text-zinc-200">Rotation Angle</span>
-                                <span className="font-mono text-[11px] text-zinc-500">{annotationRotation}°</span>
+                                <span className="font-bold text-zinc-800 dark:text-zinc-200">Stamp Opacity</span>
+                                <span className="font-mono text-[11px] text-zinc-500">{Math.round(annotationOpacity * 100)}%</span>
                               </div>
-                              <div className="grid grid-cols-4 gap-1">
-                                {[
-                                  { deg: 0, label: "0°" },
-                                  { deg: -12, label: "-12°" },
-                                  { deg: 15, label: "+15°" },
-                                  { deg: -45, label: "-45°" },
-                                ].map((item) => (
-                                  <button
-                                    key={item.deg}
-                                    type="button"
-                                    onClick={() => setAnnotationRotation(item.deg)}
-                                    className={`py-1 rounded-lg text-[11px] font-bold transition-all text-center cursor-pointer ${
-                                      annotationRotation === item.deg
-                                        ? "bg-purple-600 text-white shadow-xs"
-                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                    }`}
-                                  >
-                                    {item.label}
-                                  </button>
-                                ))}
-                              </div>
+                              <input
+                                type="range"
+                                min="0.2"
+                                max="1.0"
+                                step="0.05"
+                                value={annotationOpacity}
+                                onChange={(e) => setAnnotationOpacity(parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                              />
                             </div>
                           </div>
-                        </div>
-
-                        {/* Opacity Slider */}
-                        <div className="space-y-1 pt-1 border-t border-zinc-100 dark:border-zinc-800">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-zinc-800 dark:text-zinc-200">Stamp Opacity</span>
-                            <span className="font-mono text-[11px] text-zinc-500">{Math.round(annotationOpacity * 100)}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.2"
-                            max="1.0"
-                            step="0.05"
-                            value={annotationOpacity}
-                            onChange={(e) => setAnnotationOpacity(parseFloat(e.target.value))}
-                            className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                          />
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -7963,7 +8013,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                     ) : toolId === "pdf-to-word" ? (
                       "Convert to Word (.docx)"
                     ) : toolId === "edit-pdf" ? (
-                      "Apply Annotation Stamp"
+                      editPdfEditorMode === "canva"
+                        ? "Save & Export Edited PDF"
+                        : "Apply Annotation Stamp"
                     ) : toolId === "add-watermark" ? (
                       "Apply Watermark"
                     ) : toolId === "add-page-numbers" ? (

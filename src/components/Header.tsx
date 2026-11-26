@@ -710,7 +710,7 @@ export function Header({
                     dotColor: "bg-emerald-500",
                     tools: [
                       { id: "compress-pdf", name: "Compress PDF", badge: "Popular" },
-                      { id: "edit-pdf", name: "Edit & Annotate", badge: "Popular" },
+                      { id: "edit-pdf", name: "Canva Live Editor", badge: "Popular" },
                       { id: "repair-pdf", name: "Repair Corrupt PDF" },
                       { id: "ocr-pdf", name: "OCR Text Layer Audit", badge: "Pro" },
                       { id: "add-page-numbers", name: "Add Page Numbers" },

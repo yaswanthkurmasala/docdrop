@@ -4,3 +4,4 @@ export * from "./page-numbers.ts";
 export * from "./crop.ts";
 export * from "./annotate.ts";
 export * from "./form-flatten.ts";
+export * from "./live-editor.ts";

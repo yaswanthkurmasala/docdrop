@@ -254,8 +254,8 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
   },
   {
     id: "edit-pdf",
-    name: "Edit & Annotate PDF",
-    description: "Stamp certified status badges, audit notices, and placement tags directly onto PDF pages.",
+    name: "Canva Live PDF Editor",
+    description: "Click and edit any word in your PDF with exact matching fonts, plus text boxes, whiteout eraser, and highlights.",
     category: "edit",
     categoryLabel: "EDIT PDF",
     badge: "Popular",
