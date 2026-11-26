@@ -82,8 +82,9 @@ export function Faq() {
                 <motion.div
                   animate={{ rotate: isOpen ? 180 : 0 }}
                   transition={motionTokens.spring.snappy}
+                  className="inline-flex items-center justify-center shrink-0 ml-3 will-change-transform"
                 >
-                  <ChevronDown className="w-4 h-4 text-[var(--text-muted)] flex-shrink-0 ml-3" />
+                  <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
                 </motion.div>
               </button>
 
@@ -95,13 +96,15 @@ export function Faq() {
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{
-                      height: { duration: motionTokens.duration.standard, ease: motionTokens.ease.standard },
-                      opacity: { duration: motionTokens.duration.fast },
+                      height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                      opacity: { duration: 0.2 },
                     }}
-                    className="overflow-hidden"
+                    className="overflow-hidden will-change-[height,opacity]"
                   >
-                    <div className="px-5 pb-5 text-xs text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border-subtle)] pt-3.5 max-w-[70ch]">
-                      {faq.answer}
+                    <div className="border-t border-[var(--border-subtle)]">
+                      <div className="px-5 pt-3.5 pb-5 text-xs text-[var(--text-secondary)] leading-relaxed max-w-[70ch]">
+                        {faq.answer}
+                      </div>
                     </div>
                   </motion.div>
                 )}

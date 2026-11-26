@@ -72,7 +72,7 @@ export function Features() {
               whileInView="visible"
               viewport={{ once: true, margin: "-60px" }}
               variants={cardVariants}
-              className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-colors"
+              className="p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xs hover:border-[var(--border-strong)] transition-colors will-change-[transform,opacity]"
             >
               <div className="flex items-center gap-2.5 mb-3">
                 <Icon className="w-5 h-5 text-zinc-900 dark:text-zinc-100 shrink-0" />

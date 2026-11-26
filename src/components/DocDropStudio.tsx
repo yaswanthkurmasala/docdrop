@@ -279,30 +279,33 @@ export function DocDropStudio({
             {activeToolId === "merge-pdf" ? (
               <motion.div
                 key="merge-pdf-view"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: motionTokens.duration.standard }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: motionTokens.ease.standard }}
+                className="will-change-[transform,opacity]"
               >
                 <MergePdfTool isPro={effectiveIsPro} onOpenPricing={handleOpenPricing} />
               </motion.div>
             ) : activeToolId === "pdf-to-markdown" ? (
               <motion.div
                 key="markdown-converter-view"
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: motionTokens.duration.standard }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: motionTokens.ease.standard }}
+                className="will-change-[transform,opacity]"
               >
                 <ConverterWorkspace isPro={effectiveIsPro} onOpenPricing={handleOpenPricing} />
               </motion.div>
             ) : (
               <motion.div
                 key={`universal-tool-${activeToolId}`}
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: motionTokens.duration.standard }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: motionTokens.ease.standard }}
+                className="will-change-[transform,opacity]"
               >
                 <UniversalPdfTool
                   toolId={activeToolId}

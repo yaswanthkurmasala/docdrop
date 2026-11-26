@@ -141,7 +141,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         {/* Tier 1: Free Explorer */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
-          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-zinc-400 dark:hover:border-zinc-700 transition-all justify-between"
+          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-zinc-400 dark:hover:border-zinc-700 transition-all justify-between will-change-[transform]"
         >
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -211,7 +211,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         {/* Tier 2: The Quick Pass */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
-          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.03] dark:bg-amber-500/[0.04] shadow-2xs hover:border-amber-500/50 transition-all justify-between"
+          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.03] dark:bg-amber-500/[0.04] shadow-2xs hover:border-amber-500/50 transition-all justify-between will-change-[transform]"
         >
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -282,7 +282,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         {/* Tier 3: Monthly Pro / Annual Pass (Most Popular) */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
-          className="flex flex-col p-4 sm:p-5 rounded-2xl border-2 border-amber-500/60 dark:border-amber-400/50 bg-white dark:bg-zinc-900 shadow-md relative ring-1 ring-amber-500/20 justify-between"
+          className="flex flex-col p-4 sm:p-5 rounded-2xl border-2 border-amber-500/60 dark:border-amber-400/50 bg-white dark:bg-zinc-900 shadow-md relative ring-1 ring-amber-500/20 justify-between will-change-[transform]"
         >
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -389,7 +389,7 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         {/* Tier 4: Lifetime Pass */}
         <motion.div
           whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
-          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-zinc-400 dark:hover:border-zinc-700 transition-all justify-between"
+          className="flex flex-col p-4 sm:p-5 rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 shadow-2xs hover:border-zinc-400 dark:hover:border-zinc-700 transition-all justify-between will-change-[transform]"
         >
           <div>
             <div className="flex items-center justify-between mb-2">

@@ -281,7 +281,7 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
               <motion.div
                 whileHover={{ y: -2, transition: motionTokens.spring.snappy }}
                 whileTap={{ scale: 0.98 }}
-                className={`group h-full p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs ${
+                className={`group h-full p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs will-change-[transform] ${
                   isActive
                     ? "border-zinc-950 dark:border-white bg-white dark:bg-zinc-900 ring-1 ring-zinc-950 dark:ring-white shadow-xs"
                     : "border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-400 dark:hover:border-zinc-700 hover:shadow-xs"

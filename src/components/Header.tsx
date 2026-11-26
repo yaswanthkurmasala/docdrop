@@ -335,7 +335,7 @@ export function Header({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
                     transition={motionTokens.spring.snappy}
-                    className="absolute left-0 mt-1.5 w-64 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xl p-2 z-50 text-left"
+                    className="absolute left-0 mt-1.5 w-64 origin-top-left rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xl p-2 z-50 text-left"
                   >
                     <div className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 px-3 py-1 font-mono uppercase tracking-wider">
                       Convert To PDF
@@ -484,7 +484,7 @@ export function Header({
                   <motion.span
                     layoutId="themeSwitcherPill"
                     transition={motionTokens.spring.snappy}
-                    className="absolute inset-0 rounded-lg bg-zinc-900 dark:bg-zinc-800 border border-zinc-700/60 shadow-2xs -z-10"
+                    className="absolute inset-0 rounded-lg bg-zinc-900 dark:bg-zinc-800 shadow-2xs -z-10"
                   />
                 )}
                 <Moon className="w-3.5 h-3.5 relative z-10" />
@@ -528,7 +528,7 @@ export function Header({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={motionTokens.spring.snappy}
-                      className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xl p-2 z-50 text-left overflow-hidden"
+                      className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-xl p-2 z-50 text-left overflow-hidden"
                     >
                       {/* User Identity Header Card */}
                       <div className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800/60 mb-1.5">
@@ -810,8 +810,10 @@ export function Header({
             </motion.div>
           </>
         )}
+      </AnimatePresence>
 
-        {/* Mobile Navigation Drawer Overlay (for screens < lg) */}
+      {/* Mobile Navigation Drawer Overlay (for screens < lg) */}
+      <AnimatePresence>
         {isMobileMenuOpen && (
           <>
             {/* Backdrop Dimmer */}

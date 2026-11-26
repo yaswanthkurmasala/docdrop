@@ -120,13 +120,15 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             rotateX: rotXReport,
             rotateY: rotYReport,
             transformStyle: "preserve-3d",
+            willChange: "transform",
           }}
-          className="absolute top-2 sm:top-4 -left-4 sm:left-4 lg:left-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
+          className="absolute top-2 sm:top-4 left-0 sm:left-4 lg:left-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
         >
           <motion.div
             animate={{ y: [0, -10, 0], rotateZ: [0, 1.5, 0] }}
             transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xs p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
           >
             <div>
               {/* Document Header & Corner Fold */}
@@ -188,13 +190,15 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             rotateX: rotXNda,
             rotateY: rotYNda,
             transformStyle: "preserve-3d",
+            willChange: "transform",
           }}
-          className="absolute top-4 sm:top-6 -right-4 sm:right-4 lg:right-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
+          className="absolute top-4 sm:top-6 right-0 sm:right-4 lg:right-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
         >
           <motion.div
             animate={{ y: [0, 10, 0], rotateZ: [0, -1.5, 0] }}
             transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xs p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
           >
             <div>
               {/* Document Header */}
@@ -258,13 +262,15 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             rotateX: rotXSheet,
             rotateY: rotYSheet,
             transformStyle: "preserve-3d",
+            willChange: "transform",
           }}
           className="hidden md:block absolute bottom-16 left-0 sm:left-4 lg:left-12 opacity-[0.14] dark:opacity-[0.18]"
         >
           <motion.div
             animate={{ y: [0, -8, 0], rotateZ: [0, -1, 0] }}
             transition={{ duration: 8.4, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xs p-3.5 shadow-xl text-left flex flex-col justify-between"
+            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
           >
             <div>
               {/* Spreadsheet Header */}
@@ -325,13 +331,15 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             rotateX: rotXReadme,
             rotateY: rotYReadme,
             transformStyle: "preserve-3d",
+            willChange: "transform",
           }}
           className="hidden md:block absolute bottom-12 right-0 sm:right-4 lg:right-12 opacity-[0.14] dark:opacity-[0.18]"
         >
           <motion.div
             animate={{ y: [0, 8, 0], rotateZ: [0, 1.2, 0] }}
             transition={{ duration: 7.4, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
-            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/80 dark:bg-zinc-900/70 backdrop-blur-xs p-3.5 shadow-xl text-left flex flex-col justify-between"
+            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
           >
             <div>
               {/* Specification Header */}
@@ -368,7 +376,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 5. Deep Left Flank: Redacted Intelligence Dossier --- */}
         <motion.div
-          style={{ y: yRedacted, rotateZ: rotZRedacted }}
+          style={{ y: yRedacted, rotateZ: rotZRedacted, willChange: "transform" }}
           className="hidden xl:block absolute top-1/2 -translate-y-1/2 -left-6 opacity-[0.10] dark:opacity-[0.14]"
         >
           <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
@@ -390,7 +398,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 6. Deep Right Flank: Organized Multipage Blueprint --- */}
         <motion.div
-          style={{ y: yBlueprint, rotateZ: rotZBlueprint }}
+          style={{ y: yBlueprint, rotateZ: rotZBlueprint, willChange: "transform" }}
           className="hidden xl:block absolute top-1/2 -translate-y-1/2 -right-6 opacity-[0.10] dark:opacity-[0.14]"
         >
           <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
@@ -463,17 +471,17 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
                 ))}
 
                 <span className="col-start-1 row-start-1 whitespace-nowrap">
-                  <AnimatePresence mode="wait">
+                  <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                       key={activePhraseIndex}
-                      initial={{ opacity: 0, y: 16, filter: "blur(6px)" }}
+                      initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
                       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+                      exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
                       transition={{
-                        duration: 0.42,
+                        duration: 0.36,
                         ease: [0.16, 1, 0.3, 1],
                       }}
-                      className="inline-block font-syne font-extrabold tracking-[-0.03em] text-zinc-950 dark:text-white whitespace-nowrap"
+                      className="inline-block font-syne font-extrabold tracking-[-0.03em] text-zinc-950 dark:text-white whitespace-nowrap will-change-[transform,opacity,filter]"
                     >
                       {DYNAMIC_PHRASES[activePhraseIndex]}
                     </motion.span>
