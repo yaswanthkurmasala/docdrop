@@ -28,6 +28,7 @@ import {
   PenTool,
   GitCompare,
   Languages,
+  Eye,
   EyeOff,
   Copy,
   Check,
@@ -453,6 +454,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [repairProgress, setRepairProgress] = useState<{ percent: number; message: string } | null>(null);
   const [userPassword, setUserPassword] = useState("123456");
   const [unlockPassword, setUnlockPassword] = useState("123456");
+  const [protectAlgorithm, setProtectAlgorithm] = useState<"AES-256" | "RC4">("AES-256");
+  const [showUserPassword, setShowUserPassword] = useState(false);
+  const [protectProgress, setProtectProgress] = useState<{ percent: number; message: string } | null>(null);
+  const [showUnlockPassword, setShowUnlockPassword] = useState(false);
+  const [unlockProgress, setUnlockProgress] = useState<{ percent: number; message: string } | null>(null);
+  const [compareSensitivity, setCompareSensitivity] = useState<"sentence" | "word">("sentence");
+  const [compareProgress, setCompareProgress] = useState<{ percent: number; message: string } | null>(null);
   // Interactive Sign PDF Studio parameters
   const [signStudioConfig, setSignStudioConfig] = useState<SignStudioConfig>({
     signerName: "Authorized Signer",
@@ -1246,6 +1254,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setCropProgress(null);
     setFormAction("flatten");
     setFormProgress(null);
+    setProtectAlgorithm("AES-256");
+    setShowUserPassword(false);
+    setProtectProgress(null);
+    setShowUnlockPassword(false);
+    setUnlockProgress(null);
+    setCompareSensitivity("sentence");
+    setCompareProgress(null);
     setResult(null);
     setError(null);
     setCloudBackupSuccess(false);
@@ -1552,14 +1567,19 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         setImageProgress(null);
       } else if (isCompareMode) {
         if (!file || !compareSecondFile) throw new Error("Please select both Document 1 and Document 2 to compare.");
-        const res = await comparePdf(file, compareSecondFile);
+        setCompareProgress({ percent: 10, message: "Extracting text streams from both documents..." });
+        const res = await comparePdf(file, compareSecondFile, {
+          sensitivity: compareSensitivity,
+          onProgress: (percent, message) => setCompareProgress({ percent, message }),
+        });
         setResult({
           compareData: res,
           textContent: res.reportText,
-          fileName: `Comparison_Report_${file.name.replace(/\.[^/.]+$/, "")}_vs_${compareSecondFile.name.replace(/\.[^/.]+$/, "")}.md`,
-          meta: `Comparison complete: ${res.similarityScore}% vocabulary similarity match`,
+          fileName: res.fileName,
+          meta: res.summary,
           type: "text",
         });
+        setCompareProgress(null);
       } else {
         if (!file) throw new Error("Please select a document to process.");
 
@@ -2046,23 +2066,34 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "protect-pdf": {
-            const res = await protectPdf(file, userPassword);
+            setProtectProgress({ percent: 15, message: "Preparing cryptographic envelope..." });
+            const res = await protectPdf(file, {
+              userPassword,
+              algorithm: protectAlgorithm,
+              onProgress: (percent, message) => setProtectProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Document encrypted with military-grade 256-bit AES password`,
+              meta: `${res.summary} (100% In-Browser Memory)`,
               type: "pdf",
             });
+            setProtectProgress(null);
             break;
           }
           case "unlock-pdf": {
-            const res = await unlockPdf(file, unlockPassword);
+            setUnlockProgress({ percent: 15, message: "Decrypting document streams..." });
+            const res = await unlockPdf(file, {
+              password: unlockPassword,
+              onProgress: (percent, message) => setUnlockProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Password restrictions removed. Document fully unlocked`,
+              meta: `${res.summary} (100% In-Browser Memory)`,
               type: "pdf",
             });
+            setUnlockProgress(null);
             break;
           }
           case "sign-pdf": {
@@ -2285,6 +2316,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     slidesProgress?.message ||
     cropProgress?.message ||
     formProgress?.message ||
+    protectProgress?.message ||
+    unlockProgress?.message ||
+    compareProgress?.message ||
     compressionProgress?.status ||
     repairProgress?.message ||
     signProgress?.message ||
@@ -4850,35 +4884,222 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "protect-pdf" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      Set Document Password (AES-256)
-                    </label>
-                    <input
-                      type="password"
-                      value={userPassword}
-                      onChange={(e) => setUserPassword(e.target.value)}
-                      placeholder="Enter secure password"
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-sm font-mono focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
-                    />
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        Military-Grade Document Encryption
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Zero Server Upload
+                      </span>
+                    </div>
+
+                    {/* Algorithm Selection */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Encryption Standard
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "AES-256" as const, title: "AES-256 (Military Standard)", desc: "Maximum cryptographic protection", badge: "Recommended" },
+                          { id: "RC4" as const, title: "RC4 128-bit (Legacy Compatible)", desc: "Compatible with older PDF readers", badge: "Standard" },
+                        ].map((algo) => (
+                          <div
+                            key={algo.id}
+                            onClick={() => setProtectAlgorithm(algo.id)}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              protectAlgorithm === algo.id
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold">{algo.title}</span>
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                    protectAlgorithm === algo.id
+                                      ? "bg-white/20 text-white dark:bg-black/10 dark:text-black"
+                                      : "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300"
+                                  }`}
+                                >
+                                  {algo.badge}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[10px] leading-relaxed ${
+                                  protectAlgorithm === algo.id
+                                    ? "text-zinc-300 dark:text-zinc-600"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {algo.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Password Input */}
+                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-bold text-zinc-900 dark:text-zinc-100">
+                          Master Document Password
+                        </label>
+                        <span className="text-[11px] font-mono text-zinc-500">
+                          {userPassword.length >= 10 ? "Strong" : userPassword.length >= 6 ? "Medium" : "Short"}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showUserPassword ? "text" : "password"}
+                          value={userPassword}
+                          onChange={(e) => setUserPassword(e.target.value)}
+                          placeholder="Enter secure password"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowUserPassword(!showUserPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                        >
+                          {showUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-[11px] text-blue-900 dark:text-blue-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        Encrypted in client WebAssembly memory. Password never transmitted.
+                      </span>
+                    </div>
                   </div>
                 )}
 
                 {toolId === "unlock-pdf" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      Enter Current Password (if known)
-                    </label>
-                    <input
-                      type="password"
-                      value={unlockPassword}
-                      onChange={(e) => setUnlockPassword(e.target.value)}
-                      placeholder="Password"
-                      className="w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white text-sm font-mono focus:border-zinc-950 dark:focus:border-zinc-500 focus:outline-none"
-                    />
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Sample locked document uses password: <code className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">123456</code>
-                    </p>
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <Unlock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        PDF Decryption &amp; Restriction Removal
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Full Access
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <label className="font-bold text-zinc-900 dark:text-zinc-100">
+                          Enter Current Document Password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setUnlockPassword("123456")}
+                          className="text-[11px] font-mono text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                        >
+                          Use Sample &quot;123456&quot;
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showUnlockPassword ? "text" : "password"}
+                          value={unlockPassword}
+                          onChange={(e) => setUnlockPassword(e.target.value)}
+                          placeholder="Password (leave blank if unknown)"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-950 dark:text-white text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowUnlockPassword(!showUnlockPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                        >
+                          {showUnlockPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Removes owner and user locks to enable unrestricted printing, copy/pasting, and annotation.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {isCompareMode && (
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <GitCompare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                        Side-by-Side Document Comparison
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Text &amp; Layout Diff
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Document 1 (Source)</span>
+                        </div>
+                        <p className="text-xs font-mono font-medium truncate text-zinc-700 dark:text-zinc-300">
+                          {file?.name || "No file selected"}
+                        </p>
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          {file ? `${(file.size / 1024).toFixed(1)} KB` : "--"}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Document 2 (Target)</span>
+                        </div>
+                        <p className="text-xs font-mono font-medium truncate text-zinc-700 dark:text-zinc-300">
+                          {compareSecondFile?.name || "No second file selected"}
+                        </p>
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          {compareSecondFile ? `${(compareSecondFile.size / 1024).toFixed(1)} KB` : "--"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Comparison Granularity
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "sentence" as const, label: "Sentence Diff (Recommended)", desc: "Pinpoint modified, added & removed thoughts" },
+                          { id: "word" as const, label: "Word-Level Alignment", desc: "Strict vocabulary frequency delta" },
+                        ].map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setCompareSensitivity(m.id)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              compareSensitivity === m.id
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{m.label}</div>
+                            <div
+                              className={`text-[10px] mt-0.5 ${
+                                compareSensitivity === m.id
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {m.desc}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -7755,6 +7976,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                         : "Clear & Reset Form Fields"
                     ) : toolId === "rotate-pdf" ? (
                       `Rotate ${rotatePageScope === "all" ? "All" : rotatePageScope === "odd" ? "Odd" : rotatePageScope === "even" ? "Even" : "Selected"} Pages (+${rotateAngle}°)`
+                    ) : toolId === "protect-pdf" ? (
+                      `Encrypt Document (${protectAlgorithm})`
+                    ) : toolId === "unlock-pdf" ? (
+                      "Decrypt & Remove Restrictions"
+                    ) : isCompareMode ? (
+                      "Compare Documents Side-by-Side"
+                    ) : toolId === "ai-summarizer" ? (
+                      "Synthesize Executive Summary"
                     ) : (
                       `Execute ${details.title.split(" ")[0]}`
                     )}

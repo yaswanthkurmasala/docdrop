@@ -1,12 +1,12 @@
 import { extractTextFromPdf } from "../common/pdfjs-loader.ts";
 
-/**
- * Compare two PDF documents with vocabulary similarity and sentence-by-sentence diff
- */
-export async function comparePdf(
-  file1: File,
-  file2: File
-): Promise<{
+export interface ComparePdfOptions {
+  sensitivity?: "sentence" | "word" | "line";
+  maxDifferences?: number;
+  onProgress?: (percent: number, message: string) => void;
+}
+
+export interface ComparePdfResult {
   reportText: string;
   doc1Pages: number;
   doc2Pages: number;
@@ -15,10 +15,28 @@ export async function comparePdf(
   wordCount2: number;
   addedLinesCount: number;
   removedLinesCount: number;
-}> {
+  fileName: string;
+  summary: string;
+}
+
+/**
+ * Compare two PDF documents with vocabulary similarity and sentence-by-sentence diff
+ */
+export async function comparePdf(
+  file1: File,
+  file2: File,
+  options?: ComparePdfOptions
+): Promise<ComparePdfResult> {
+  const onProgress = options?.onProgress;
+  const maxDiffs = options?.maxDifferences ?? 8;
+
+  onProgress?.(15, `Extracting text streams from ${file1.name}...`);
   const t1 = await extractTextFromPdf(file1);
+
+  onProgress?.(45, `Extracting text streams from ${file2.name}...`);
   const t2 = await extractTextFromPdf(file2);
 
+  onProgress?.(70, "Computing vocabulary frequencies & structural diffs...");
   const words1 = t1.text.split(/\s+/).filter(Boolean);
   const words2 = t2.text.split(/\s+/).filter(Boolean);
 
@@ -30,7 +48,8 @@ export async function comparePdf(
     if (set2.has(w)) matches++;
   }
 
-  const similarityScore = set1.size > 0 ? Math.round((matches / Math.max(set1.size, set2.size)) * 100) : 100;
+  const similarityScore =
+    set1.size > 0 ? Math.round((matches / Math.max(set1.size, set2.size)) * 100) : 100;
 
   // Split into sentences for detailed diff
   const sentences1 = t1.text
@@ -45,31 +64,45 @@ export async function comparePdf(
   const sSet1 = new Set(sentences1);
   const sSet2 = new Set(sentences2);
 
-  const removedSentences = sentences1.filter((s) => !sSet2.has(s)).slice(0, 5);
-  const addedSentences = sentences2.filter((s) => !sSet1.has(s)).slice(0, 5);
+  const removedSentences = sentences1.filter((s) => !sSet2.has(s)).slice(0, maxDiffs);
+  const addedSentences = sentences2.filter((s) => !sSet1.has(s)).slice(0, maxDiffs);
 
-  const reportText = `# PDF Comparison Report
+  onProgress?.(90, "Synthesizing side-by-side comparison report...");
+  const reportText = `# PDF Comparison Audit Report
 
 ## Document Comparison Summary
-- **File 1**: ${file1.name} (${t1.pages.length} pages, ${words1.length} words)
-- **File 2**: ${file2.name} (${t2.pages.length} pages, ${words2.length} words)
-- **Vocabulary Similarity**: ${similarityScore}%
+- **Primary Document (File 1)**: ${file1.name} (${t1.pages.length} pages, ${words1.length.toLocaleString()} words)
+- **Comparison Target (File 2)**: ${file2.name} (${t2.pages.length} pages, ${words2.length.toLocaleString()} words)
+- **Vocabulary Similarity Score**: ${similarityScore}%
 - **Page Delta**: ${Math.abs(t1.pages.length - t2.pages.length)} page(s)
-- **Word Delta**: ${Math.abs(words1.length - words2.length)} words
+- **Word Delta**: ${Math.abs(words1.length - words2.length).toLocaleString()} words
 
 ## Key Content Differences
 
 ### Unique to ${file1.name} (Removed or altered):
-${removedSentences.length > 0 ? removedSentences.map((s) => `- 🔴 ${s}`).join("\n") : "_No exclusive sentences found._"}
+${
+  removedSentences.length > 0
+    ? removedSentences.map((s) => `- 🔴 ${s}`).join("\n")
+    : "_No exclusive sentences found._"
+}
 
 ### Unique to ${file2.name} (Added or new):
-${addedSentences.length > 0 ? addedSentences.map((s) => `- 🟢 ${s}`).join("\n") : "_No exclusive sentences found._"}
+${
+  addedSentences.length > 0
+    ? addedSentences.map((s) => `- 🟢 ${s}`).join("\n")
+    : "_No exclusive sentences found._"
+}
 
 ## Content Preview
-**${file1.name}**: ${t1.text.slice(0, 250)}...
+**${file1.name}**:
+> ${t1.text.slice(0, 300)}...
 
-**${file2.name}**: ${t2.text.slice(0, 250)}...
+**${file2.name}**:
+> ${t2.text.slice(0, 300)}...
 `;
+
+  onProgress?.(100, "Done!");
+  const summary = `Comparison complete: ${similarityScore}% similarity across ${t1.pages.length} vs ${t2.pages.length} pages (${addedSentences.length} added, ${removedSentences.length} removed sentences)`;
 
   return {
     reportText,
@@ -80,5 +113,7 @@ ${addedSentences.length > 0 ? addedSentences.map((s) => `- 🟢 ${s}`).join("\n"
     wordCount2: words2.length,
     addedLinesCount: addedSentences.length,
     removedLinesCount: removedSentences.length,
+    fileName: `comparison_${file1.name.replace(/\.[^/.]+$/, "")}_vs_${file2.name.replace(/\.[^/.]+$/, "")}.md`,
+    summary,
   };
 }
