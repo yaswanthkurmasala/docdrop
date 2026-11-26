@@ -383,6 +383,19 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [isLoadingNumberThumbnails, setIsLoadingNumberThumbnails] = useState(false);
   const [numberProgress, setNumberProgress] = useState<{ percent: number; message: string } | null>(null);
   const [cropMargin, setCropMargin] = useState(36);
+  // Crop PDF studio options
+  const [cropPreset, setCropPreset] = useState<"standard" | "minimal" | "generous" | "custom">("standard");
+  const [cropTop, setCropTop] = useState<number>(36);
+  const [cropBottom, setCropBottom] = useState<number>(36);
+  const [cropLeft, setCropLeft] = useState<number>(36);
+  const [cropRight, setCropRight] = useState<number>(36);
+  const [cropPageScope, setCropPageScope] = useState<"all" | "odd" | "even" | "custom">("all");
+  const [cropCustomPages, setCropCustomPages] = useState<string>("1");
+  const [cropProgress, setCropProgress] = useState<{ percent: number; message: string } | null>(null);
+
+  // PDF Forms studio options
+  const [formAction, setFormAction] = useState<"flatten" | "audit_only" | "clear_values">("flatten");
+  const [formProgress, setFormProgress] = useState<{ percent: number; message: string } | null>(null);
   // Image & Scan Studio configurations
   const [imageItems, setImageItems] = useState<ImageStudioItem[]>([]);
   const [imagePageSize, setImagePageSize] = useState<"a4" | "fit" | "letter">("a4");
@@ -1222,6 +1235,17 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     setSlidesDpi(1.5);
     setSlidesFormat("jpeg");
     setSlidesProgress(null);
+    setCropPreset("standard");
+    setCropMargin(36);
+    setCropTop(36);
+    setCropBottom(36);
+    setCropLeft(36);
+    setCropRight(36);
+    setCropPageScope("all");
+    setCropCustomPages("1");
+    setCropProgress(null);
+    setFormAction("flatten");
+    setFormProgress(null);
     setResult(null);
     setError(null);
     setCloudBackupSuccess(false);
@@ -1702,13 +1726,26 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "crop-pdf": {
-            const res = await cropPdf(file, cropMargin);
+            setCropProgress({ percent: 15, message: "Analyzing page boundaries & crop boxes..." });
+            const margins =
+              cropPreset === "custom"
+                ? { top: cropTop, bottom: cropBottom, left: cropLeft, right: cropRight }
+                : undefined;
+            const res = await cropPdf(file, {
+              preset: cropPreset,
+              marginPt: cropPreset !== "custom" ? cropMargin : undefined,
+              margins,
+              pageScope: cropPageScope,
+              customPages: cropCustomPages,
+              onProgress: (percent, message) => setCropProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Cropped margins by ${cropMargin}pt across ${res.totalPages} pages`,
+              meta: `${res.summary} (100% In-Browser Memory)`,
               type: "pdf",
             });
+            setCropProgress(null);
             break;
           }
           case "compress-pdf": {
@@ -1993,13 +2030,19 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "pdf-forms": {
-            const res = await inspectAndFlattenPdfForms(file);
+            setFormProgress({ percent: 15, message: "Inspecting AcroForm widgets & field dictionary..." });
+            const res = await inspectAndFlattenPdfForms(file, {
+              action: formAction,
+              onProgress: (percent, message) => setFormProgress({ percent, message }),
+            });
             setResult({
               pdfBytes: res.pdfBytes,
               fileName: res.fileName,
-              meta: `Form processing complete: ${res.fieldSummary}`,
+              meta: `${res.summary} (100% In-Browser Memory)`,
+              textContent: res.fieldSummary,
               type: "pdf",
             });
+            setFormProgress(null);
             break;
           }
           case "protect-pdf": {
@@ -2240,6 +2283,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     pdfToExcelProgress?.message ||
     pdfaProgress?.message ||
     slidesProgress?.message ||
+    cropProgress?.message ||
+    formProgress?.message ||
     compressionProgress?.status ||
     repairProgress?.message ||
     signProgress?.message ||
@@ -4609,19 +4654,198 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "crop-pdf" && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                      Border Margin Inset: {cropMargin}pt (~{(cropMargin / 72).toFixed(2)} in)
-                    </label>
-                    <input
-                      type="range"
-                      min="18"
-                      max="72"
-                      step="6"
-                      value={cropMargin}
-                      onChange={(e) => setCropMargin(parseInt(e.target.value, 10))}
-                      className="w-full mt-2"
-                    />
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <Crop className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        Crop Margins &amp; Page Insets
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Zero Vector Compression Loss
+                      </span>
+                    </div>
+
+                    {/* Presets Grid */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Crop Presets
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: "standard" as const, title: "Standard (36pt)", desc: "0.5 in (~12.7 mm)", badge: "Popular" },
+                          { id: "minimal" as const, title: "Minimal (18pt)", desc: "0.25 in scanner trim", badge: "Light" },
+                          { id: "generous" as const, title: "Generous (54pt)", desc: "0.75 in deep trim", badge: "Wide" },
+                          { id: "custom" as const, title: "Custom Sides", desc: "T / B / L / R control", badge: "Pro" },
+                        ].map((p) => (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              setCropPreset(p.id);
+                              if (p.id === "minimal") setCropMargin(18);
+                              if (p.id === "standard") setCropMargin(36);
+                              if (p.id === "generous") setCropMargin(54);
+                            }}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              cropPreset === p.id
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold">{p.title}</span>
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                    cropPreset === p.id
+                                      ? "bg-white/20 text-white dark:bg-black/10 dark:text-black"
+                                      : "bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300"
+                                  }`}
+                                >
+                                  {p.badge}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[10px] leading-relaxed ${
+                                  cropPreset === p.id
+                                    ? "text-zinc-300 dark:text-zinc-600"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {p.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Margin Controls */}
+                    {cropPreset === "custom" ? (
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-2">
+                        <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                          Independent Margin Insets (Points)
+                        </label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block mb-1">Top</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="150"
+                              value={cropTop}
+                              onChange={(e) => setCropTop(parseInt(e.target.value, 10) || 0)}
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono font-bold"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block mb-1">Bottom</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="150"
+                              value={cropBottom}
+                              onChange={(e) => setCropBottom(parseInt(e.target.value, 10) || 0)}
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono font-bold"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block mb-1">Left</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="150"
+                              value={cropLeft}
+                              onChange={(e) => setCropLeft(parseInt(e.target.value, 10) || 0)}
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono font-bold"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block mb-1">Right</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="150"
+                              value={cropRight}
+                              onChange={(e) => setCropRight(parseInt(e.target.value, 10) || 0)}
+                              className="w-full px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <label className="font-bold text-zinc-900 dark:text-zinc-100">
+                            Uniform Border Margin Inset
+                          </label>
+                          <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">
+                            {cropMargin}pt (~{(cropMargin / 72).toFixed(2)} in)
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="72"
+                          step="6"
+                          value={cropMargin}
+                          onChange={(e) => setCropMargin(parseInt(e.target.value, 10))}
+                          className="w-full cursor-pointer accent-purple-600"
+                        />
+                      </div>
+                    )}
+
+                    {/* Target Pages */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Target Pages
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { scope: "all" as const, label: "All Pages", tag: "Full PDF" },
+                          { scope: "odd" as const, label: "Odd Pages", tag: "1, 3, 5..." },
+                          { scope: "even" as const, label: "Even Pages", tag: "2, 4, 6..." },
+                          { scope: "custom" as const, label: "Custom Range", tag: "Specific" },
+                        ].map((item) => (
+                          <button
+                            key={item.scope}
+                            type="button"
+                            onClick={() => setCropPageScope(item.scope)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              cropPageScope === item.scope
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div
+                              className={`text-[10px] font-mono ${
+                                cropPageScope === item.scope
+                                  ? "text-zinc-300 dark:text-zinc-600"
+                                  : "text-zinc-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              {item.tag}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {cropPageScope === "custom" && (
+                      <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 space-y-1.5">
+                        <label className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-between">
+                          <span>Enter Page Numbers or Ranges</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">e.g. 1, 3, 5-8</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={cropCustomPages}
+                          onChange={(e) => setCropCustomPages(e.target.value)}
+                          placeholder="1, 3, 5-8"
+                          className="w-full px-3 py-2 rounded-xl text-xs font-mono font-medium border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -5743,13 +5967,93 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "pdf-forms" && (
-                  <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/50 text-purple-900 dark:text-purple-300 text-xs space-y-1.5">
-                    <p className="font-bold flex items-center gap-1.5">
-                      <FileText className="w-4 h-4" /> Form Security & Field Flattening
-                    </p>
-                    <p className="text-[11px] leading-relaxed text-purple-700 dark:text-purple-400">
-                      Scans the document for interactive AcroForm widgets, text inputs, and checkboxes, and permanently flattens them into immutable vector content to prevent unauthorized tampering.
-                    </p>
+                  <div className="space-y-4 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                        AcroForm Security &amp; Field Processing
+                      </span>
+                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                        Tamper-Proof
+                      </span>
+                    </div>
+
+                    {/* Mode Cards */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Processing Action
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            id: "flatten" as const,
+                            title: "Flatten Fields",
+                            desc: "Converts text inputs, checkboxes, and signatures into immutable vector graphics.",
+                            tag: "Recommended",
+                            tagStyle: "bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300",
+                          },
+                          {
+                            id: "audit_only" as const,
+                            title: "Security Audit",
+                            desc: "Inspects AcroForm object tree and lists all interactive fields without modifying document.",
+                            tag: "Inspect",
+                            tagStyle: "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300",
+                          },
+                          {
+                            id: "clear_values" as const,
+                            title: "Clear & Sanitize",
+                            desc: "Empties filled inputs and resets checkboxes to produce a clean blank form template.",
+                            tag: "Sanitize",
+                            tagStyle: "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300",
+                          },
+                        ].map((m) => (
+                          <div
+                            key={m.id}
+                            onClick={() => setFormAction(m.id)}
+                            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                              formAction === m.id
+                                ? "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:border-zinc-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-bold">{m.title}</span>
+                                <span
+                                  className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                    formAction === m.id
+                                      ? "bg-white/20 text-white dark:bg-black/10 dark:text-black"
+                                      : m.tagStyle
+                                  }`}
+                                >
+                                  {m.tag}
+                                </span>
+                              </div>
+                              <p
+                                className={`text-[10px] leading-relaxed ${
+                                  formAction === m.id
+                                    ? "text-zinc-300 dark:text-zinc-600"
+                                    : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                              >
+                                {m.desc}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Security & Feature Notice */}
+                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/90 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-600 dark:text-zinc-400">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        Guarantees non-reversible document locking for regulatory, audit, &amp; legal archival
+                      </span>
+                      <span className="font-mono text-[10px] text-zinc-500">
+                        100% Client-Side
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -7441,6 +7745,14 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       "Extract Tables to Excel (.xlsx)"
                     ) : toolId === "pdf-to-pdfa" ? (
                       `Standardize to ${pdfaLevel} Archival PDF`
+                    ) : toolId === "crop-pdf" ? (
+                      `Crop ${cropPageScope === "all" ? "All" : cropPageScope} Pages (${cropPreset === "custom" ? `${cropTop}/${cropRight}/${cropBottom}/${cropLeft}pt` : `${cropMargin}pt`})`
+                    ) : toolId === "pdf-forms" ? (
+                      formAction === "flatten"
+                        ? "Flatten & Secure All Form Fields"
+                        : formAction === "audit_only"
+                        ? "Run Form Security Audit"
+                        : "Clear & Reset Form Fields"
                     ) : toolId === "rotate-pdf" ? (
                       `Rotate ${rotatePageScope === "all" ? "All" : rotatePageScope === "odd" ? "Odd" : rotatePageScope === "even" ? "Even" : "Selected"} Pages (+${rotateAngle}°)`
                     ) : (
