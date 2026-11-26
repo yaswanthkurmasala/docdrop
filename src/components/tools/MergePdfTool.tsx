@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
+import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
 import {
   mergePdfFiles,
   getPdfPageCount,
@@ -311,9 +312,18 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
   };
 
   const totalPagesCount = fileItems.reduce((acc, f) => acc + (f.pageCount || 0), 0);
+  const activeStep: 1 | 2 | 3 = result ? 3 : isProcessing ? 3 : fileItems.length > 0 ? 2 : 1;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Sequential Step Workflow Tracker */}
+      <StepWorkflowTracker
+        currentStep={activeStep}
+        step1Title="Upload PDF Files"
+        step2Title="Reorder & Priority"
+        step3Title="Merge & Download"
+        statusMessage={isProcessing ? "Combining document streams in local RAM..." : null}
+      />
       <AnimatePresence mode="wait">
         {!result ? (
           <motion.div

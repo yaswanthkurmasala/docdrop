@@ -52,6 +52,7 @@ import {
   Globe,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
+import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
 import {
   splitPdf,
   parseRangeToIndices,
@@ -2010,8 +2011,32 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     ? !!file && !!compareSecondFile
     : !!file;
 
+  const activeStep: 1 | 2 | 3 = result ? 3 : isProcessing ? 3 : hasInput ? 2 : 1;
+  const activeProgressMessage =
+    splitProgress?.message ||
+    removeProgress?.message ||
+    watermarkProgress?.message ||
+    numberProgress?.message ||
+    compressionProgress?.status ||
+    repairProgress?.message ||
+    signProgress?.message ||
+    ocrProgress?.message ||
+    wordProgress?.message ||
+    redactProgress?.message ||
+    annotateProgress?.message ||
+    translateProgress?.message ||
+    (isProcessing ? "Executing client-side algorithm in memory..." : null);
+
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Sequential Step Workflow Tracker */}
+      <StepWorkflowTracker
+        currentStep={activeStep}
+        step1Title="Upload Document"
+        step2Title="Configure Features"
+        step3Title="In-RAM Conversion"
+        statusMessage={activeProgressMessage}
+      />
       <AnimatePresence mode="wait">
         {!result ? (
           <motion.div

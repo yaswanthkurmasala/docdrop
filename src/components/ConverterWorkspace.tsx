@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { motionTokens } from "@/lib/motion-tokens";
+import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { convertDocument, chunkMarkdown, estimateTokens, estimateCost, type ConversionResult, type MarkdownChunk } from "@/lib/converter";
 import { SAMPLE_DOCUMENTS } from "@/lib/sample-docs";
@@ -386,9 +387,19 @@ Please review the document above and assist me with the following:
   };
 
   const cost = result ? estimateCost(result.tokenCount) : null;
+  const activeStep: 1 | 2 | 3 = result ? 3 : isProcessing ? 2 : 1;
 
   return (
     <section id="converter" className="relative scroll-mt-24 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+      <div className="w-full max-w-4xl mx-auto">
+        <StepWorkflowTracker
+          currentStep={activeStep}
+          step1Title="Upload Document"
+          step2Title="GFM & Noise Stripping"
+          step3Title="Markdown & Token Metrics"
+          statusMessage={isProcessing ? "Reconstructing Markdown tables and stripping format noise..." : null}
+        />
+      </div>
       <AnimatePresence mode="wait">
         {!result ? (
           <motion.div
