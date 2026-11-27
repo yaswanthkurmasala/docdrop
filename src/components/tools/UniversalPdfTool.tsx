@@ -91,6 +91,7 @@ import {
   type TranslateLayoutResult,
   convertImagesToPdf,
   compressPdf,
+  type CompressionLevel,
   repairPdf,
   type RepairStrategy,
   type RepairOptions,
@@ -206,8 +207,9 @@ interface ToolResult {
     compressedSize: number;
     savingsBytes: number;
     savingsPercent: number;
-    level: "recommended" | "extreme" | "light" | "custom";
+    level: CompressionLevel;
     strategyUsed: "canvas_downsample" | "structural_stream" | "image_resample";
+    targetMaxKb?: number;
   };
   repairStats?: {
     originalSize: number;
@@ -478,7 +480,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [slidesDpi, setSlidesDpi] = useState<number>(1.5);
   const [slidesFormat, setSlidesFormat] = useState<"jpeg" | "png">("jpeg");
   const [slidesProgress, setSlidesProgress] = useState<{ percent: number; message: string } | null>(null);
-  const [compressionLevel, setCompressionLevel] = useState<"recommended" | "extreme" | "light" | "custom">("recommended");
+  const [compressionLevel, setCompressionLevel] = useState<"recommended" | "extreme" | "light" | "target" | "custom">("recommended");
+  const [compressTargetKb, setCompressTargetKb] = useState<number>(0);
   const [forceRasterize, setForceRasterize] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ percent: number; status: string } | null>(null);
   const [repairStrategy, setRepairStrategy] = useState<"smart" | "structural" | "stream_rebuild">("smart");
@@ -1852,6 +1855,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             setCompressionProgress({ percent: 5, status: "Analyzing document streams..." });
             const res = await compressPdf(file, {
               level: compressionLevel,
+              targetMaxKb: compressTargetKb > 0 ? compressTargetKb : undefined,
               forceRasterize,
               onProgress: (percent, status) => {
                 setCompressionProgress({ percent, status });
@@ -1869,6 +1873,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 savingsPercent: res.savingsPercent,
                 level: res.level,
                 strategyUsed: res.strategyUsed,
+                targetMaxKb: res.targetMaxKb,
               },
             });
             setCompressionProgress(null);
@@ -4541,13 +4546,58 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 )}
 
                 {toolId === "compress-pdf" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-4">
+                    {/* Target Portal File Size Limit Selector */}
+                    <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200/90 dark:border-zinc-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                          Target File Size Limit (Optional)
+                        </label>
+                        <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                          {compressTargetKb === 0 ? "Auto Maximum Compression" : `Target: < ${compressTargetKb} KB`}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Need your file under a strict size limit for government exams, job portals, or email? Pick a target:
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {[
+                          { label: "Auto (Best Ratio)", value: 0 },
+                          { label: "< 200 KB (Govt Portals)", value: 200 },
+                          { label: "< 500 KB", value: 500 },
+                          { label: "< 1 MB", value: 1000 },
+                          { label: "< 2 MB", value: 2000 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => {
+                              setCompressTargetKb(preset.value);
+                              if (preset.value > 0) {
+                                setCompressionLevel("target");
+                              } else {
+                                setCompressionLevel("recommended");
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-semibold font-mono transition-all cursor-pointer ${
+                              compressTargetKb === preset.value
+                                ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-xs"
+                                : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
                       <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">
-                        Compression Level & Strategy
+                        Compression Level &amp; Engine
                       </label>
-                      <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                        Zero Uploads • 100% In-Browser
+                      <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" /> 100% Client-Side In-RAM
                       </span>
                     </div>
 
@@ -4556,33 +4606,36 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                         {
                           id: "extreme" as const,
                           title: "Extreme",
-                          badge: "~70–85% OFF",
+                          badge: "~70–88% OFF",
                           badgeClass: "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300",
-                          desc: "Maximum reduction for scans, images, email attachments & portal size limits.",
-                          res: "72–96 DPI JPEG",
+                          desc: "Maximum reduction for scans, images, email attachments & strict portal upload limits.",
+                          res: "High-Compression Engine",
                         },
                         {
                           id: "recommended" as const,
                           title: "Recommended",
-                          badge: "Popular",
+                          badge: "Popular (50–75% OFF)",
                           badgeClass: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300",
-                          desc: "Optimal balance of crisp visual clarity and smaller file size for sharing.",
-                          res: "110 DPI Adaptive",
+                          desc: "Optimal balance of crisp visual clarity and substantial file size reduction.",
+                          res: "Adaptive Dual-Pass",
                         },
                         {
                           id: "light" as const,
                           title: "Light / Lossless",
                           badge: "Pristine",
                           badgeClass: "bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200",
-                          desc: "100% vector text preserved. Strips metadata bloat and repacks streams.",
+                          desc: "100% vector text preserved. Strips metadata bloat and repacks binary streams.",
                           res: "Vector Sharp",
                         },
                       ].map((preset) => (
                         <div
                           key={preset.id}
-                          onClick={() => setCompressionLevel(preset.id)}
+                          onClick={() => {
+                            setCompressionLevel(preset.id);
+                            setCompressTargetKb(0);
+                          }}
                           className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                            compressionLevel === preset.id
+                            compressionLevel === preset.id && compressTargetKb === 0
                               ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 border-zinc-950 dark:border-white shadow-xs"
                               : "bg-white dark:bg-zinc-900 border-zinc-200/90 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 text-zinc-900 dark:text-zinc-100"
                           }`}
@@ -4592,7 +4645,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                               <span className="text-xs font-bold">{preset.title}</span>
                               <span
                                 className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                                  compressionLevel === preset.id
+                                  compressionLevel === preset.id && compressTargetKb === 0
                                     ? "bg-white/20 text-white dark:bg-zinc-950/20 dark:text-zinc-950"
                                     : preset.badgeClass
                                 }`}
@@ -4602,7 +4655,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                             </div>
                             <p
                               className={`text-[11px] leading-relaxed mb-3 ${
-                                compressionLevel === preset.id
+                                compressionLevel === preset.id && compressTargetKb === 0
                                   ? "text-zinc-300 dark:text-zinc-700"
                                   : "text-zinc-500 dark:text-zinc-400"
                               }`}
@@ -4612,12 +4665,12 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                           </div>
                           <div
                             className={`text-[11px] font-mono pt-2 border-t flex items-center justify-between ${
-                              compressionLevel === preset.id
+                              compressionLevel === preset.id && compressTargetKb === 0
                                 ? "border-white/10 dark:border-zinc-950/10 text-zinc-300 dark:text-zinc-700"
                                 : "border-zinc-100 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500"
                             }`}
                           >
-                            <span>Target Engine:</span>
+                            <span>Strategy:</span>
                             <span className="font-semibold">{preset.res}</span>
                           </div>
                         </div>
@@ -4652,7 +4705,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                                 : "text-zinc-500 dark:text-zinc-400"
                             }`}
                           >
-                            Re-encodes all slides, embedded charts & FlateDecode images for maximum file reduction.
+                            Re-encodes all slides, embedded charts &amp; FlateDecode images for maximum file reduction.
                           </p>
                         </div>
                       </div>
@@ -4663,7 +4716,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                             : "bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                         }`}
                       >
-                        {forceRasterize ? "ACTIVE" : "OPTIONAL"}
+                        {forceRasterize ? "ACTIVE" : "AUTO"}
                       </span>
                     </div>
                   </div>
