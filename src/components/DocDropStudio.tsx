@@ -221,9 +221,9 @@ export function DocDropStudio({
         >
           <h2 className="sr-only">Document Workbench &amp; Active Instrument</h2>
 
-          {/* Refined Dock-Style Tool Switcher with Responsive Touch Scroll */}
-          <div className="w-full overflow-x-auto no-scrollbar py-1 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
-            <div className="flex items-center justify-start sm:justify-center gap-1.5 p-1.5 rounded-2xl bg-[var(--surface)] border border-zinc-200/90 dark:border-zinc-800 shadow-2xs w-max min-w-full sm:min-w-0 sm:w-auto mx-auto relative">
+          {/* Refined Dock-Style Tool Switcher: Tightly shrink-wrapped, centered, zero dead space */}
+          <div className="w-full flex items-center justify-center py-1 mb-8 overflow-x-auto no-scrollbar px-2 sm:px-4">
+            <div className="inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-2xl bg-[var(--surface)]/95 dark:bg-[var(--surface)]/90 backdrop-blur-md border border-zinc-200/90 dark:border-zinc-800 shadow-2xs shrink-0 mx-auto">
               {[
                 {
                   id: "pdf-to-markdown",
@@ -299,6 +299,8 @@ export function DocDropStudio({
                   <span>{activeDef.name}</span>
                 </button>
               )}
+
+              <div className="h-4 w-px bg-zinc-200/80 dark:bg-zinc-800 mx-0.5 shrink-0" aria-hidden="true" />
 
               <button
                 type="button"
