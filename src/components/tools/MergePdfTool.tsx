@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -20,6 +21,10 @@ import {
   RotateCw,
   Undo2,
   Sparkles,
+  PenTool,
+  Zap,
+  Stamp,
+  Lock,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
@@ -35,6 +40,16 @@ import { useAuth } from "@/context/AuthContext";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
+import { setChainedDocument, getChainedDocument } from "@/lib/pdf-tools/chained-document";
+
+const PIPELINE_CHAIN_TOOLS = [
+  { id: "edit-pdf", name: "Canva Live Editor", desc: "Change words with matching fonts", icon: PenTool },
+  { id: "compress-pdf", name: "Compress PDF", desc: "Optimize file size in memory", icon: Zap },
+  { id: "sign-pdf", name: "Sign PDF", desc: "Stamp certified signatures", icon: Stamp },
+  { id: "protect-pdf", name: "Protect PDF", desc: "Lock with 256-bit AES encryption", icon: Lock },
+  { id: "add-watermark", name: "Add Watermark", desc: "Stamp custom text or logo", icon: Stamp },
+  { id: "organize-pdf", name: "Organize Pages", desc: "Reorder & duplicate pages", icon: Layers },
+];
 
 interface MergePdfToolProps {
   isPro: boolean;
@@ -42,6 +57,7 @@ interface MergePdfToolProps {
 }
 
 export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
+  const router = useRouter();
   const [fileItems, setFileItems] = useState<MergeFileItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<MergeResult | null>(null);
@@ -58,6 +74,27 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
   const { user } = useAuth();
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [cloudBackupSuccess, setCloudBackupSuccess] = useState(false);
+
+  // Check for in-memory chained document from preceding tool
+  useEffect(() => {
+    const chained = getChainedDocument();
+    if (chained) {
+      addFiles([chained]);
+    }
+  }, []);
+
+  const handleChainToTool = (nextToolId: string) => {
+    if (!result?.mergedBytes) return;
+    try {
+      const chainedFile = new File([result.mergedBytes as any], result.fileName || "merged.pdf", {
+        type: "application/pdf",
+      });
+      setChainedDocument(chainedFile);
+      router.push(`/tools/${nextToolId}`);
+    } catch (e) {
+      console.error("Failed to chain document", e);
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -759,6 +796,50 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
               >
                 Merge More PDFs
               </button>
+            </div>
+
+            {/* In-Memory Tool Chaining Pipeline */}
+            <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 text-left">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    Continue Workflow With This Document
+                  </h4>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    Jump into another instrument instantly in memory — zero re-uploading required.
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60">
+                  RAM Pipeline
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {PIPELINE_CHAIN_TOOLS.map((tool) => {
+                  const ToolIcon = tool.icon;
+                  return (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => handleChainToTool(tool.id)}
+                      className="p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-purple-400 dark:hover:border-purple-600 bg-zinc-50/50 dark:bg-zinc-800/40 hover:bg-purple-50/40 dark:hover:bg-purple-950/30 transition-all text-left flex items-start gap-2.5 group cursor-pointer"
+                    >
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 group-hover:text-purple-600 dark:group-hover:text-purple-400 group-hover:border-purple-300 dark:group-hover:border-purple-700 transition-colors shrink-0">
+                        <ToolIcon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200 group-hover:text-purple-700 dark:group-hover:text-purple-300 truncate">
+                          {tool.name}
+                        </div>
+                        <div className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">
+                          {tool.desc}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         )}

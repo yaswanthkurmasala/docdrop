@@ -383,6 +383,31 @@ export function buildToolJsonLd(tool: ToolDefinition, profile: ToolSeoProfile) {
         },
       },
       {
+        "@type": "HowTo",
+        name: `How to use ${tool.name} online for free`,
+        description: profile.seoDescription,
+        totalTime: "PT1M",
+        supply: [
+          {
+            "@type": "HowToSupply",
+            name: `${tool.accepts.join(", ").toUpperCase()} Document`,
+          },
+        ],
+        tool: [
+          {
+            "@type": "HowToTool",
+            name: `${tool.name} (DocDrop Browser Studio)`,
+          },
+        ],
+        step: profile.howToSteps.map((stepText, idx) => ({
+          "@type": "HowToStep",
+          position: idx + 1,
+          name: `Step ${idx + 1}: ${stepText.split(" — ")[0] || `Step ${idx + 1}`}`,
+          text: stepText,
+          url: `${toolUrl}#step-${idx + 1}`,
+        })),
+      },
+      {
         "@type": "FAQPage",
         mainEntity: profile.faqs.map((f) => ({
           "@type": "Question",

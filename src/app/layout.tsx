@@ -112,6 +112,20 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </ThemeProvider>
+        {/* PWA Offline Service Worker Registration */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+                window.addEventListener("load", function() {
+                  navigator.serviceWorker.register("/sw.js").catch(function(err) {
+                    console.debug("[DocDrop PWA] SW registration skipped:", err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
         <Analytics />
       </body>
     </html>

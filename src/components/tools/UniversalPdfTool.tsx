@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
+import { setChainedDocument, getChainedDocument } from "@/lib/pdf-tools/chained-document";
 import { motion, AnimatePresence } from "motion/react";
 import {
   UploadCloud,
@@ -339,7 +341,17 @@ const getToolDetails = (id: string) => {
   }
 };
 
+const PIPELINE_CHAIN_TOOLS = [
+  { id: "edit-pdf", name: "Canva Live Editor", desc: "Change words with matching fonts", icon: PenTool },
+  { id: "compress-pdf", name: "Compress PDF", desc: "Optimize file size in memory", icon: Zap },
+  { id: "sign-pdf", name: "Sign PDF", desc: "Stamp certified signatures", icon: Stamp },
+  { id: "protect-pdf", name: "Protect PDF", desc: "Lock with 256-bit AES encryption", icon: Lock },
+  { id: "add-watermark", name: "Add Watermark", desc: "Stamp custom text or logo", icon: Stamp },
+  { id: "organize-pdf", name: "Organize Pages", desc: "Reorder & duplicate pages", icon: Layers },
+];
+
 export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfToolProps) {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [compareSecondFile, setCompareSecondFile] = useState<File | null>(null);
   const [multiFiles, setMultiFiles] = useState<File[]>([]);
@@ -1542,6 +1554,42 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Check for in-memory chained document from another tool
+  useEffect(() => {
+    const chained = getChainedDocument();
+    if (chained) {
+      setFile(chained);
+      setError(null);
+      setResult(null);
+      if (toolId === "organize-pdf") {
+        loadOrganizeThumbnails(chained);
+      } else if (toolId === "split-pdf" || toolId === "extract-pages") {
+        loadSplitThumbnails(chained);
+      } else if (toolId === "remove-pages") {
+        loadRemoveThumbnails(chained);
+      } else if (toolId === "ocr-pdf") {
+        loadOcrThumbnailsAndPreflight(chained);
+      } else if (toolId === "edit-pdf") {
+        loadAnnotateThumbnail(chained);
+      } else if (toolId === "add-watermark") {
+        loadWatermarkThumbnail(chained);
+      } else if (toolId === "add-page-numbers") {
+        loadNumberThumbnails(chained);
+      } else if (toolId === "redact-pdf") {
+        loadRedactThumbnail(chained, 1);
+      }
+    }
+  }, [toolId]);
+
+  const handleChainToTool = (targetToolId: string) => {
+    if (!result?.pdfBytes) return;
+    const nextFile = new File([result.pdfBytes as any], result.fileName || "document.pdf", {
+      type: "application/pdf",
+    });
+    setChainedDocument(nextFile);
+    router.push(`/tools/${targetToolId}`);
   };
 
   const executeTool = async () => {
@@ -8989,6 +9037,41 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   Your PDF was split into independent documents in browser memory and packaged into a high-speed ZIP archive ready to download.
                 </p>
+              </div>
+            )}
+
+            {/* In-Memory Tool Chaining Pipeline Tray */}
+            {result.pdfBytes && (
+              <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-800 space-y-2 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    Continue Workflow With This Document
+                  </span>
+                  <span className="text-[11px] text-zinc-500">
+                    Instant pipeline • Zero re-uploading
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {PIPELINE_CHAIN_TOOLS.filter((t) => t.id !== toolId).map((tool) => (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      onClick={() => handleChainToTool(tool.id)}
+                      className="p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-purple-500/80 hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-all text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <tool.icon className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-purple-600 dark:group-hover:text-purple-300 line-clamp-1">
+                          {tool.name}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-500 mt-1 line-clamp-1">
+                        {tool.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

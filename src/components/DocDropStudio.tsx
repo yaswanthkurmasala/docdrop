@@ -18,6 +18,7 @@ import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon } from "l
 import { motion, AnimatePresence } from "motion/react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY } from "@/lib/tools-registry";
+import { GlobalDropzone } from "@/components/GlobalDropzone";
 
 interface DocDropStudioProps {
   initialToolId?: string;
@@ -152,6 +153,9 @@ export function DocDropStudio({
 
   return (
     <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)] selection:bg-[var(--accent-subtle)]">
+      {/* Global In-Browser Drag-and-Drop Ingestion */}
+      <GlobalDropzone onSelectTool={handleSelectTool} />
+
       {/* Navigation Header with Mega-Menu & Auth */}
       <Header
         onOpenPricing={handleOpenPricing}
