@@ -38,6 +38,7 @@ import { createSamplePdfFile } from "@/lib/pdf-tools/sample-pdf";
 import { loadPdfJs } from "@/lib/pdf-tools/common/pdfjs-loader";
 import { useAuth } from "@/context/AuthContext";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
+import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
 import { logConversionRecord } from "@/lib/firebase/firestore";
 import { uploadUserDocument } from "@/lib/firebase/storage";
 import { setChainedDocument, getChainedDocument } from "@/lib/pdf-tools/chained-document";
@@ -69,6 +70,7 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
   const [addPageNumbers, setAddPageNumbers] = useState(false);
   const [pageNumberPosition, setPageNumberPosition] = useState<"bottom-center" | "bottom-right">("bottom-center");
   const [customOutputName, setCustomOutputName] = useState("");
+  const [customFileName, setCustomFileName] = useState("");
 
   // Cloud Backup
   const { user } = useAuth();
@@ -274,6 +276,9 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
         customOutputName: customOutputName.trim() || undefined,
       });
       setResult(res);
+      const lastDot = res.fileName.lastIndexOf(".");
+      const base = lastDot > 0 ? res.fileName.substring(0, lastDot) : res.fileName;
+      setCustomFileName(base);
 
       if (user?.id) {
         logConversionRecord(user.id, {
@@ -318,11 +323,12 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
 
   const handleDownload = () => {
     if (!result) return;
+    const effectiveName = computeEffectiveFileName(result.fileName, customFileName);
     const blob = new Blob([result.mergedBytes as any], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = result.fileName;
+    link.download = effectiveName;
     link.click();
     setTimeout(() => {
       URL.revokeObjectURL(url);
@@ -745,13 +751,20 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
                 <Sparkles className="w-3.5 h-3.5" /> Merge Completed Successfully
               </span>
-              <h3 className="text-xl sm:text-2xl font-bold text-zinc-950 dark:text-white mt-3">
-                {result.fileName}
+              <h3 className="text-xl sm:text-2xl font-bold text-zinc-950 dark:text-white mt-3 font-mono">
+                {computeEffectiveFileName(result.fileName, customFileName)}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-mono tnum">
                 Combined {result.totalFiles} files into {result.totalPages} total pages • {(result.mergedBytes.length / 1024).toFixed(1)} KB
               </p>
             </div>
+
+            {/* Custom Output File Name Customization */}
+            <CustomFileNameInput
+              defaultFileName={result.fileName}
+              value={customFileName}
+              onChange={setCustomFileName}
+            />
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button

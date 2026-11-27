@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -23,6 +23,7 @@ import {
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
+import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
 import { convertDocument, chunkMarkdown, estimateTokens, estimateCost, type ConversionResult, type MarkdownChunk } from "@/lib/converter";
 import { SAMPLE_DOCUMENTS } from "@/lib/sample-docs";
@@ -48,6 +49,17 @@ export function ConverterWorkspace({ isPro, onOpenPricing }: ConverterWorkspaceP
   const [copiedType, setCopiedType] = useState<"clean" | "llm" | null>(null);
   const [chunks, setChunks] = useState<MarkdownChunk[]>([]);
   const [chunkSize, setChunkSize] = useState<number>(500);
+  const [customFileName, setCustomFileName] = useState<string>("");
+
+  useEffect(() => {
+    if (result?.metadata?.fileName) {
+      const lastDot = result.metadata.fileName.lastIndexOf(".");
+      const base = lastDot > 0 ? result.metadata.fileName.substring(0, lastDot) : result.metadata.fileName;
+      setCustomFileName(base);
+    } else {
+      setCustomFileName("");
+    }
+  }, [result?.metadata?.fileName]);
 
   const { user } = useAuth();
   const [isSavingCloud, setIsSavingCloud] = useState(false);
@@ -59,8 +71,9 @@ export function ConverterWorkspace({ isPro, onOpenPricing }: ConverterWorkspaceP
     if (!user?.id || !result) return;
     setIsSavingCloud(true);
     try {
+      const effectiveTitle = computeEffectiveFileName(result.metadata.fileName, customFileName);
       await saveWorkspaceDocument(user.id, {
-        title: result.metadata.fileName || "Converted Document",
+        title: effectiveTitle || "Converted Document",
         content: result.markdown,
         format: "markdown",
         sourceFileName: result.metadata.fileName,
@@ -240,9 +253,9 @@ Please review the document above and assist me with the following:
     const blob = new Blob([result.markdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const baseName = result.metadata.fileName.replace(/\.[^/.]+$/, "");
+    const effectiveName = computeEffectiveFileName(`${result.metadata.fileName.replace(/\.[^/.]+$/, "")}.md`, customFileName);
     link.href = url;
-    link.download = `${baseName}.md`;
+    link.download = effectiveName;
     link.click();
     setTimeout(() => {
       URL.revokeObjectURL(url);
@@ -361,9 +374,9 @@ Please review the document above and assist me with the following:
       const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const baseName = result.metadata.fileName.replace(/\.[^/.]+$/, "");
+      const effectiveName = computeEffectiveFileName(`${result.metadata.fileName.replace(/\.[^/.]+$/, "")}-Clean.pdf`, customFileName);
       link.href = url;
-      link.download = `${baseName}-Clean.pdf`;
+      link.download = effectiveName;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       triggerConfetti();
@@ -662,6 +675,16 @@ Please review the document above and assist me with the following:
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Custom Output File Name Bar */}
+            <div className="border-b border-[var(--border)] px-4 sm:px-6 py-3 bg-[var(--surface-muted)]/50">
+              <CustomFileNameInput
+                defaultFileName={result.metadata.fileName}
+                value={customFileName}
+                onChange={setCustomFileName}
+                className="!max-w-full"
+              />
             </div>
 
             {/* Action Toolbar */}

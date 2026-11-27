@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
+import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
 import {
   splitPdf,
   parseRangeToIndices,
@@ -360,6 +361,17 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const [multiFiles, setMultiFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ToolResult | null>(null);
+  const [customFileName, setCustomFileName] = useState<string>("");
+
+  useEffect(() => {
+    if (result?.fileName) {
+      const lastDot = result.fileName.lastIndexOf(".");
+      const base = lastDot > 0 ? result.fileName.substring(0, lastDot) : result.fileName;
+      setCustomFileName(base);
+    } else {
+      setCustomFileName("");
+    }
+  }, [result?.fileName]);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [hasCopiedText, setHasCopiedText] = useState(false);
@@ -1461,7 +1473,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
         throw new Error("No output file available to backup");
       }
 
-      const res = await uploadUserDocument(user.id, blob, result.fileName, "exports");
+      const effectiveName = computeEffectiveFileName(result.fileName, customFileName);
+      const res = await uploadUserDocument(user.id, blob, effectiveName, "exports");
       if (res) {
         setCloudUrl(res.downloadUrl);
         setCloudBackupSuccess(true);
@@ -1604,7 +1617,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
   const handleChainToTool = (targetToolId: string) => {
     if (!result?.pdfBytes) return;
-    const nextFile = new File([result.pdfBytes as any], result.fileName || "document.pdf", {
+    const effectiveName = computeEffectiveFileName(result.fileName, customFileName);
+    const nextFile = new File([result.pdfBytes as any], effectiveName || "document.pdf", {
       type: "application/pdf",
     });
     setChainedDocument(nextFile);
@@ -2377,10 +2391,11 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       return;
     }
 
+    const effectiveName = computeEffectiveFileName(result.fileName, customFileName);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = result.fileName;
+    link.download = effectiveName;
     link.click();
     setTimeout(() => {
       URL.revokeObjectURL(url);
@@ -8604,7 +8619,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_report.md`;
+                      const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                      a.download = `${baseName}_report.md`;
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
@@ -8619,7 +8635,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_raw.txt`;
+                      const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                      a.download = `${baseName}_raw.txt`;
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
@@ -8634,7 +8651,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
                       a.href = url;
-                      a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_audit.json`;
+                      const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                      a.download = `${baseName}_audit.json`;
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
@@ -8650,7 +8668,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
-                        a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_searchable.pdf`;
+                        const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                        a.download = `${baseName}_searchable.pdf`;
                         a.click();
                         URL.revokeObjectURL(url);
                       }}
@@ -8813,7 +8832,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                           const url = URL.createObjectURL(blob);
                           const a = document.createElement("a");
                           a.href = url;
-                          a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_viewer.html`;
+                          const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                          a.download = `${baseName}_viewer.html`;
                           a.click();
                           URL.revokeObjectURL(url);
                         }}
@@ -8829,7 +8849,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
-                        a.download = `${result.fileName.replace(/\.[^/.]+$/, "")}_tm.json`;
+                        const baseName = computeEffectiveFileName(result.fileName, customFileName).replace(/\.[^/.]+$/, "");
+                        a.download = `${baseName}_tm.json`;
                         a.click();
                         URL.revokeObjectURL(url);
                       }}
@@ -9144,6 +9165,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               </div>
             )}
 
+            {/* Custom Output File Name Customization */}
+            <CustomFileNameInput
+              defaultFileName={result.fileName}
+              value={customFileName}
+              onChange={setCustomFileName}
+            />
+
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
               <motion.button
                 whileHover={{ scale: 1.02 }}
@@ -9152,7 +9180,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-xs font-bold rounded-2xl shadow-xs transition-all cursor-pointer min-w-[200px]"
               >
                 <Download className="w-4 h-4" />
-                <span>Download {result.fileName.split(".").pop()?.toUpperCase()}</span>
+                <span>Download {computeEffectiveFileName(result.fileName, customFileName).split(".").pop()?.toUpperCase()}</span>
               </motion.button>
 
               {result.pdfBytes && (
@@ -9226,7 +9254,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                     <Eye className="w-4 h-4" />
                   </div>
                   <span className="text-xs font-bold text-white truncate max-w-md">
-                    {result?.fileName}
+                    {result ? computeEffectiveFileName(result.fileName, customFileName) : ""}
                   </span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
                     100% In-RAM
