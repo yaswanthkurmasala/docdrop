@@ -169,14 +169,18 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
           ========================================================================= */}
       <div
         className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
-        style={{ perspective: "1200px" }}
+        style={{
+          perspective: "1200px",
+          maskImage: "radial-gradient(ellipse 70% 60% at 50% 45%, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.5) 50%, black 100%)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 45%, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.5) 50%, black 100%)",
+        }}
       >
         {/* --- 1. Left Flank: Executive Financial Report Sheet (A4 Proportion) --- */}
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(12px)" }}
+          animate={{ opacity: 0.20, y: 0, scale: 1, filter: "blur(4.5px)" }}
           transition={{ duration: 1.1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute top-2 sm:top-4 left-0 sm:left-4 lg:left-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
+          className="absolute top-0 sm:top-2 -left-2 sm:-left-4 lg:-left-6 2xl:-left-12 blur-[4.5px]"
         >
           <motion.div
             style={{
@@ -249,10 +253,10 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 2. Right Flank: Mutual NDA & Cryptographic Signature Sheet --- */}
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(12px)" }}
+          animate={{ opacity: 0.20, y: 0, scale: 1, filter: "blur(4.5px)" }}
           transition={{ duration: 1.1, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute top-4 sm:top-6 right-0 sm:right-4 lg:right-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
+          className="absolute top-2 sm:top-4 -right-2 sm:-right-4 lg:-right-6 2xl:-right-12 blur-[4.5px]"
         >
           <motion.div
             style={{
@@ -326,10 +330,10 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
         </motion.div>
         {/* --- 3. Mid-Bottom Left: High-Performance Data Table / Spreadsheet Page --- */}
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(12px)" }}
+          animate={{ opacity: 0.18, y: 0, scale: 1, filter: "blur(4.5px)" }}
           transition={{ duration: 1.1, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="hidden md:block absolute bottom-16 left-0 sm:left-4 lg:left-12 opacity-[0.14] dark:opacity-[0.18]"
+          className="hidden md:block absolute -bottom-6 sm:bottom-2 -left-2 sm:-left-4 lg:-left-4 2xl:-left-10 blur-[4.5px]"
         >
           <motion.div
             style={{
@@ -401,10 +405,10 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 4. Mid-Bottom Right: LLM Architecture & Markdown Specification Page --- */}
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
-          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(12px)" }}
+          animate={{ opacity: 0.18, y: 0, scale: 1, filter: "blur(4.5px)" }}
           transition={{ duration: 1.1, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
-          className="hidden md:block absolute bottom-12 right-0 sm:right-4 lg:right-12 opacity-[0.14] dark:opacity-[0.18]"
+          className="hidden md:block absolute -bottom-8 sm:bottom-0 -right-2 sm:-right-4 lg:-right-4 2xl:-right-10 blur-[4.5px]"
         >
           <motion.div
             style={{
@@ -458,10 +462,10 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 5. Deep Left Flank: Redacted Intelligence Dossier --- */}
         <motion.div
-          initial={{ opacity: 0, x: -30, scale: 0.9, filter: "blur(6px)" }}
-          animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, x: -30, scale: 0.9, filter: "blur(10px)" }}
+          animate={{ opacity: 0.14, x: 0, scale: 1, filter: "blur(5px)" }}
           transition={{ duration: 1.1, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="hidden xl:block absolute top-1/2 -translate-y-1/2 -left-6 opacity-[0.10] dark:opacity-[0.14]"
+          className="hidden xl:block absolute top-1/2 -translate-y-1/2 -left-12 2xl:-left-20 blur-[5px]"
         >
           <motion.div style={{ y: yRedacted, rotateZ: rotZRedacted, willChange: "transform" }}>
             <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
@@ -484,10 +488,10 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* --- 6. Deep Right Flank: Organized Multipage Blueprint --- */}
         <motion.div
-          initial={{ opacity: 0, x: 30, scale: 0.9, filter: "blur(6px)" }}
-          animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, x: 30, scale: 0.9, filter: "blur(10px)" }}
+          animate={{ opacity: 0.14, x: 0, scale: 1, filter: "blur(5px)" }}
           transition={{ duration: 1.1, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="hidden xl:block absolute top-1/2 -translate-y-1/2 -right-6 opacity-[0.10] dark:opacity-[0.14]"
+          className="hidden xl:block absolute top-1/2 -translate-y-1/2 -right-12 2xl:-right-20 blur-[5px]"
         >
           <motion.div style={{ y: yBlueprint, rotateZ: rotZBlueprint, willChange: "transform" }}>
             <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
