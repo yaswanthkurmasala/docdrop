@@ -264,13 +264,15 @@ export function Header({
         initial={{ y: -24, opacity: 0, filter: "blur(4px)" }}
         animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
         transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-        className={`w-full transition-all duration-200 border-b ${
+        className={`w-full transition-all duration-300 border-b relative ${
           isScrolled || isMegaMenuOpen
-            ? "border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-xs"
-            : "border-zinc-200/60 dark:border-zinc-800/60 bg-white/85 dark:bg-zinc-950/85 backdrop-blur-md"
+            ? "border-zinc-200/70 dark:border-white/[0.08] bg-white/80 dark:bg-zinc-950/70 backdrop-blur-2xl shadow-xs"
+            : "border-zinc-200/40 dark:border-white/[0.06] bg-white/45 dark:bg-zinc-950/35 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)]"
         }`}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+        {/* Soft Ambient Light Glow filtering across the header */}
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/[0.05] via-transparent to-orange-500/[0.04] pointer-events-none" />
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16 relative z-10">
           {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
             <Link
@@ -426,7 +428,7 @@ export function Header({
               <button
                 type="button"
                 onClick={onOpenCommandPalette}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all shadow-2xs group cursor-pointer"
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/70 dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-zinc-700 bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xs text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all shadow-2xs group cursor-pointer"
                 title="Search all 33+ tools (⌘K / Ctrl+K)"
               >
                 <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200" />
@@ -441,7 +443,7 @@ export function Header({
               <button
                 type="button"
                 onClick={onOpenCommandPalette}
-                className="md:hidden p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 cursor-pointer"
+                className="md:hidden p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xs border border-zinc-200/70 dark:border-white/[0.08] cursor-pointer"
                 title="Search all tools (⌘K)"
               >
                 <Search className="w-3.5 h-3.5" />
@@ -449,7 +451,7 @@ export function Header({
             )}
             {/* 3-State Theme Switcher: System (Default), Light, Dark - Animated Pill & Origin Reveal */}
             <div
-              className="relative isolate inline-flex items-center p-0.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs"
+              className="relative isolate inline-flex items-center p-0.5 rounded-xl border border-zinc-200/70 dark:border-white/[0.08] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xs shadow-2xs"
               role="group"
               aria-label="Color theme switcher"
             >
@@ -525,7 +527,7 @@ export function Header({
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="h-9 flex items-center gap-2 pl-2 pr-2.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all cursor-pointer shadow-2xs group"
+                  className="h-9 flex items-center gap-2 pl-2 pr-2.5 rounded-xl border border-zinc-200/70 dark:border-white/[0.08] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xs hover:border-zinc-300 dark:hover:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all cursor-pointer shadow-2xs group"
                   aria-label="User account menu"
                   aria-expanded={isUserMenuOpen}
                 >
