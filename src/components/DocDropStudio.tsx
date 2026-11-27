@@ -197,7 +197,7 @@ export function DocDropStudio({
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col w-full overflow-x-hidden">
         {/* Render Dedicated Tool SEO Hero OR Default Homepage Hero */}
         {toolHero ? (
           toolHero

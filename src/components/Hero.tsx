@@ -150,32 +150,41 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="relative pt-12 pb-12 sm:pt-20 sm:pb-16 text-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden select-none"
+      className="relative pt-12 pb-16 sm:pt-20 sm:pb-20 text-center w-full overflow-hidden select-none"
     >
-      {/* Ambient Luminous Aurora Backlight (Warm Radiant Sunset & Honey Gold) with Opening Expansion */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.75 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[380px] pointer-events-none"
-      >
-        <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/22 via-orange-500/16 to-rose-500/14 dark:from-amber-400/18 dark:via-orange-400/12 dark:to-rose-400/10 rounded-full blur-3xl animate-aurora" />
-        <div className="absolute inset-x-1/4 top-1/4 w-1/2 h-1/2 bg-amber-400/18 dark:bg-amber-300/12 rounded-full blur-2xl" />
-      </motion.div>
+      {/* =========================================================================
+          FULL-BLEED LUXURY ATMOSPHERIC BACKDROP: Seamless Edge-to-Edge Radiant Glow
+          Completely eliminates lateral black bars on widescreen & ultrawide displays
+          ========================================================================= */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        {/* Continuous Full-Width Viewport Radial Aura (No dark bars on left or right) */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-15%,rgba(245,158,11,0.16),rgba(234,88,12,0.08)_40%,rgba(99,102,241,0.04)_70%,transparent_90%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_50%_-15%,rgba(245,158,11,0.13),rgba(234,88,12,0.06)_40%,rgba(99,102,241,0.03)_70%,transparent_90%)]" />
+
+        {/* Expansive Luminous Ambient Aurora that washes naturally to screen edges */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute -top-32 left-1/2 -translate-x-1/2 w-[1200px] max-w-[130vw] h-[580px] pointer-events-none"
+        >
+          <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/22 via-orange-500/16 to-rose-500/14 dark:from-amber-400/16 dark:via-orange-400/12 dark:to-rose-400/10 rounded-full blur-3xl animate-aurora" />
+          <div className="absolute inset-x-1/4 top-1/4 w-1/2 h-1/2 bg-amber-400/18 dark:bg-amber-300/12 rounded-full blur-2xl" />
+        </motion.div>
+
+        {/* Smooth Bottom Gradient Fade seamlessly transitioning into the workbench */}
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[var(--background)] to-transparent pointer-events-none" />
+      </div>
 
       {/* =========================================================================
           BACKGROUND 3D SPATIAL LAYER: Realistic Translucent Document Pages with 
           3D Perspective Tilt, Real Layout Typography, and Parallax Scroll Physics
           ========================================================================= */}
       <div
-        className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none"
-        style={{
-          perspective: "1200px",
-          maskImage: "radial-gradient(ellipse 65% 55% at 50% 45%, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.85) 60%, black 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse 65% 55% at 50% 45%, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.85) 60%, black 100%)",
-        }}
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none w-full"
+        style={{ perspective: "1400px" }}
       >
-        {/* --- 1. Left Flank: Executive Financial Report Sheet (A4 Proportion) --- */}
+        <div className="relative w-full max-w-7xl h-full mx-auto px-4 sm:px-6 lg:px-8">
+          {/* --- 1. Left Flank: Executive Financial Report Sheet (A4 Proportion) --- */}
         <motion.div
           initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(6px)" }}
           animate={{ opacity: 0.40, y: 0, scale: 1, filter: "blur(1.5px)" }}
@@ -521,12 +530,13 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
             </div>
           </motion.div>
         </motion.div>
+        </div>
       </div>
 
       {/* =========================================================================
           FOREGROUND HERO CONTENT
           ========================================================================= */}
-      <div className="relative z-10 max-w-4xl mx-auto">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Status Pill */}
         <motion.div
           variants={statusBadgeVariants}
