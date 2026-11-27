@@ -72,20 +72,74 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.04,
+        staggerChildren: 0.12,
+        delayChildren: 0.06,
       },
     },
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16, filter: "blur(6px)" },
+  const statusBadgeVariants = {
+    hidden: { opacity: 0, y: -16, scale: 0.92, filter: "blur(4px)" },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      filter: "blur(0px)",
+      transition: {
+        duration: 0.65,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
+  };
+
+  const headlineVariants = {
+    hidden: { opacity: 0, y: 32, filter: "blur(12px)" },
     visible: {
       opacity: 1,
       y: 0,
       filter: "blur(0px)",
       transition: {
-        duration: 0.6,
+        duration: 0.85,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
+  };
+
+  const subheadVariants = {
+    hidden: { opacity: 0, y: 22, filter: "blur(6px)" },
+    visible: {
+      opacity: 1,
+      y: 0,
+      filter: "blur(0px)",
+      transition: {
+        duration: 0.75,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
+  };
+
+  const ctaGroupVariants = {
+    hidden: { opacity: 0, y: 18, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.65,
+        ease: [0.16, 1, 0.3, 1] as const,
+      },
+    },
+  };
+
+  const metricsStripVariants = {
+    hidden: { opacity: 0, y: 24, scale: 0.98, filter: "blur(4px)" },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      filter: "blur(0px)",
+      transition: {
+        duration: 0.8,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     },
@@ -98,11 +152,16 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
       variants={containerVariants}
       className="relative pt-12 pb-12 sm:pt-20 sm:pb-16 text-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden select-none"
     >
-      {/* Ambient Luminous Aurora Backlight (Warm Radiant Sunset & Honey Gold) */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[380px] pointer-events-none">
+      {/* Ambient Luminous Aurora Backlight (Warm Radiant Sunset & Honey Gold) with Opening Expansion */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.75 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[380px] pointer-events-none"
+      >
         <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/22 via-orange-500/16 to-rose-500/14 dark:from-amber-400/18 dark:via-orange-400/12 dark:to-rose-400/10 rounded-full blur-3xl animate-aurora" />
         <div className="absolute inset-x-1/4 top-1/4 w-1/2 h-1/2 bg-amber-400/18 dark:bg-amber-300/12 rounded-full blur-2xl" />
-      </div>
+      </motion.div>
 
       {/* =========================================================================
           BACKGROUND 3D SPATIAL LAYER: Realistic Translucent Document Pages with 
@@ -114,318 +173,349 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
       >
         {/* --- 1. Left Flank: Executive Financial Report Sheet (A4 Proportion) --- */}
         <motion.div
-          style={{
-            y: yReport,
-            rotateZ: rotZReport,
-            rotateX: rotXReport,
-            rotateY: rotYReport,
-            transformStyle: "preserve-3d",
-            willChange: "transform",
-          }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
           className="absolute top-2 sm:top-4 left-0 sm:left-4 lg:left-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
         >
           <motion.div
-            animate={{ y: [0, -10, 0], rotateZ: [0, 1.5, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
-            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            style={{
+              y: yReport,
+              rotateZ: rotZReport,
+              rotateX: rotXReport,
+              rotateY: rotYReport,
+              transformStyle: "preserve-3d",
+              willChange: "transform",
+            }}
           >
-            <div>
-              {/* Document Header & Corner Fold */}
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
-                <div className="space-y-0.5">
-                  <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-                    FINANCIAL REPORT
+            <motion.div
+              animate={{ y: [0, -10, 0], rotateZ: [0, 1.5, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+              className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            >
+              <div>
+                {/* Document Header & Corner Fold */}
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
+                  <div className="space-y-0.5">
+                    <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                      FINANCIAL REPORT
+                    </div>
+                    <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                      Q3 AUDIT • IN-RAM
+                    </div>
                   </div>
-                  <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-                    Q3 AUDIT • IN-RAM
+                  <div className="w-4 h-4 border-t-2 border-r-2 border-amber-500/60 rounded-tr" />
+                </div>
+
+                {/* Miniature Chart & Metric Cards */}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="p-1.5 rounded-lg bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50">
+                    <span className="text-[11px] font-mono text-zinc-400 block">GROWTH</span>
+                    <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">+38.4%</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50">
+                    <span className="text-[11px] font-mono text-zinc-400 block">MARGIN</span>
+                    <span className="text-xs font-mono font-bold text-zinc-900 dark:text-white">82.1%</span>
                   </div>
                 </div>
-                <div className="w-4 h-4 border-t-2 border-r-2 border-amber-500/60 rounded-tr" />
-              </div>
 
-              {/* Miniature Chart & Metric Cards */}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="p-1.5 rounded-lg bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50">
-                  <span className="text-[11px] font-mono text-zinc-400 block">GROWTH</span>
-                  <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">+38.4%</span>
+                {/* Miniature Bar Chart Skeleton */}
+                <div className="mt-3.5 flex items-end gap-1.5 h-10 px-2 pb-1 rounded bg-zinc-100/60 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-700/40">
+                  <div className="w-1/6 h-[35%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
+                  <div className="w-1/6 h-[50%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
+                  <div className="w-1/6 h-[45%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
+                  <div className="w-1/6 h-[70%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
+                  <div className="w-1/6 h-[60%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
+                  <div className="w-1/6 h-[95%] bg-amber-500 rounded-t-xs" />
                 </div>
-                <div className="p-1.5 rounded-lg bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50">
-                  <span className="text-[11px] font-mono text-zinc-400 block">MARGIN</span>
-                  <span className="text-xs font-mono font-bold text-zinc-900 dark:text-white">82.1%</span>
+
+                {/* Text Paragraph Skeletons */}
+                <div className="mt-3 space-y-1.5">
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-full" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-5/6" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-3/4" />
                 </div>
               </div>
 
-              {/* Miniature Bar Chart Skeleton */}
-              <div className="mt-3.5 flex items-end gap-1.5 h-10 px-2 pb-1 rounded bg-zinc-100/60 dark:bg-zinc-800/40 border border-zinc-200/50 dark:border-zinc-700/40">
-                <div className="w-1/6 h-[35%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
-                <div className="w-1/6 h-[50%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
-                <div className="w-1/6 h-[45%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
-                <div className="w-1/6 h-[70%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
-                <div className="w-1/6 h-[60%] bg-zinc-300 dark:bg-zinc-600 rounded-t-xs" />
-                <div className="w-1/6 h-[95%] bg-amber-500 rounded-t-xs" />
+              {/* Document Page Footer */}
+              <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                <span>PAGE 1 OF 12</span>
+                <span>RESTRICTED</span>
               </div>
-
-              {/* Text Paragraph Skeletons */}
-              <div className="mt-3 space-y-1.5">
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-full" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-5/6" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-3/4" />
-              </div>
-            </div>
-
-            {/* Document Page Footer */}
-            <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-              <span>PAGE 1 OF 12</span>
-              <span>RESTRICTED</span>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
 
         {/* --- 2. Right Flank: Mutual NDA & Cryptographic Signature Sheet --- */}
         <motion.div
-          style={{
-            y: yNda,
-            rotateZ: rotZNda,
-            rotateX: rotXNda,
-            rotateY: rotYNda,
-            transformStyle: "preserve-3d",
-            willChange: "transform",
-          }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
           className="absolute top-4 sm:top-6 right-0 sm:right-4 lg:right-8 opacity-[0.08] dark:opacity-[0.10] sm:opacity-[0.14] sm:dark:opacity-[0.18]"
         >
           <motion.div
-            animate={{ y: [0, 10, 0], rotateZ: [0, -1.5, 0] }}
-            transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
-            className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            style={{
+              y: yNda,
+              rotateZ: rotZNda,
+              rotateX: rotXNda,
+              rotateY: rotYNda,
+              transformStyle: "preserve-3d",
+              willChange: "transform",
+            }}
           >
-            <div>
-              {/* Document Header */}
-              <div className="pb-2 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
-                <div>
-                  <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-                    MUTUAL NDA
+            <motion.div
+              animate={{ y: [0, 10, 0], rotateZ: [0, -1.5, 0] }}
+              transition={{ duration: 7.8, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+              style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+              className="w-32 min-[400px]:w-40 sm:w-56 h-48 min-[400px]:h-56 sm:h-76 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3 sm:p-4 shadow-xl text-left flex flex-col justify-between"
+            >
+              <div>
+                {/* Document Header */}
+                <div className="pb-2 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
+                      MUTUAL NDA
+                    </div>
+                    <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                      SEC. 4.2 • DIGITAL SEAL
+                    </div>
                   </div>
-                  <div className="text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-                    SEC. 4.2 • DIGITAL SEAL
+                  <CheckCircle2 className="w-4 h-4 text-cyan-500" />
+                </div>
+
+                {/* Legal Clause Paragraphs */}
+                <div className="mt-3 space-y-1.5">
+                  <div className="h-2 bg-zinc-300 dark:bg-zinc-700 rounded-full w-2/3 mb-2" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-full" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-11/12" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-full" />
+                  <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-4/5" />
+                </div>
+
+                {/* Digital Signature & Certified Audit Stamp */}
+                <div className="mt-4 p-2 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-mono text-zinc-400 block">VERIFIED SIGNER</span>
+                    <svg
+                      viewBox="0 0 70 20"
+                      fill="none"
+                      className="w-16 h-5 text-zinc-700 dark:text-zinc-200 mt-0.5"
+                    >
+                      <path
+                        d="M3 15C12 3 20 18 28 8C36 1 44 17 65 6"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="w-7 h-7 rounded-full border border-amber-500/40 bg-amber-500/10 flex items-center justify-center text-amber-500 font-serif text-xs font-bold shadow-2xs">
+                    ★
                   </div>
                 </div>
-                <CheckCircle2 className="w-4 h-4 text-cyan-500" />
               </div>
 
-              {/* Legal Clause Paragraphs */}
-              <div className="mt-3 space-y-1.5">
-                <div className="h-2 bg-zinc-300 dark:bg-zinc-700 rounded-full w-2/3 mb-2" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-full" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-11/12" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-full" />
-                <div className="h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full w-4/5" />
+              {/* Document Footer */}
+              <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                <span>ENCRYPTED IN-RAM</span>
+                <span>SIGNED</span>
               </div>
-
-              {/* Digital Signature & Certified Audit Stamp */}
-              <div className="mt-4 p-2 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-mono text-zinc-400 block">VERIFIED SIGNER</span>
-                  <svg
-                    viewBox="0 0 70 20"
-                    fill="none"
-                    className="w-16 h-5 text-zinc-700 dark:text-zinc-200 mt-0.5"
-                  >
-                    <path
-                      d="M3 15C12 3 20 18 28 8C36 1 44 17 65 6"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-                <div className="w-7 h-7 rounded-full border border-amber-500/40 bg-amber-500/10 flex items-center justify-center text-amber-500 font-serif text-xs font-bold shadow-2xs">
-                  ★
-                </div>
-              </div>
-            </div>
-
-            {/* Document Footer */}
-            <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-              <span>SHA-256 VALID</span>
-              <span className="text-emerald-600 dark:text-emerald-400">CERTIFIED</span>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
-
         {/* --- 3. Mid-Bottom Left: High-Performance Data Table / Spreadsheet Page --- */}
         <motion.div
-          style={{
-            y: ySheet,
-            rotateZ: rotZSheet,
-            rotateX: rotXSheet,
-            rotateY: rotYSheet,
-            transformStyle: "preserve-3d",
-            willChange: "transform",
-          }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="hidden md:block absolute bottom-16 left-0 sm:left-4 lg:left-12 opacity-[0.14] dark:opacity-[0.18]"
         >
           <motion.div
-            animate={{ y: [0, -8, 0], rotateZ: [0, -1, 0] }}
-            transition={{ duration: 8.4, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
-            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
-            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
+            style={{
+              y: ySheet,
+              rotateZ: rotZSheet,
+              rotateX: rotXSheet,
+              rotateY: rotYSheet,
+              transformStyle: "preserve-3d",
+              willChange: "transform",
+            }}
           >
-            <div>
-              {/* Spreadsheet Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
-                <div className="flex items-center gap-1.5">
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                    DATA_MATRIX.XLSX
-                  </span>
+            <motion.div
+              animate={{ y: [0, -8, 0], rotateZ: [0, -1, 0] }}
+              transition={{ duration: 8.4, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+              style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+              className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
+            >
+              <div>
+                {/* Spreadsheet Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
+                  <div className="flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      DATA_MATRIX.XLSX
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">WASM</span>
                 </div>
-                <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">WASM</span>
+
+                {/* Data Table Grid */}
+                <div className="mt-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden text-[11px] font-mono">
+                  <div className="grid grid-cols-4 bg-zinc-100/90 dark:bg-zinc-800/80 font-bold text-zinc-700 dark:text-zinc-300 py-1 px-1.5 border-b border-zinc-200 dark:border-zinc-800">
+                    <span>ID</span>
+                    <span>DOC</span>
+                    <span>PARSE</span>
+                    <span>TOKENS</span>
+                  </div>
+                  <div className="divide-y divide-zinc-200/60 dark:divide-zinc-800/60 text-zinc-600 dark:text-zinc-400">
+                    <div className="grid grid-cols-4 py-1 px-1.5">
+                      <span className="text-zinc-900 dark:text-zinc-200 font-bold">01</span>
+                      <span>10-K</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">42ms</span>
+                      <span>18.4k</span>
+                    </div>
+                    <div className="grid grid-cols-4 py-1 px-1.5">
+                      <span className="text-zinc-900 dark:text-zinc-200 font-bold">02</span>
+                      <span>P&amp;L</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">18ms</span>
+                      <span>6.2k</span>
+                    </div>
+                    <div className="grid grid-cols-4 py-1 px-1.5">
+                      <span className="text-zinc-900 dark:text-zinc-200 font-bold">03</span>
+                      <span>SPEC</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">29ms</span>
+                      <span>11.9k</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Data Table Grid */}
-              <div className="mt-2.5 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden text-[11px] font-mono">
-                <div className="grid grid-cols-4 bg-zinc-100/90 dark:bg-zinc-800/80 font-bold text-zinc-700 dark:text-zinc-300 py-1 px-1.5 border-b border-zinc-200 dark:border-zinc-800">
-                  <span>ID</span>
-                  <span>DOC</span>
-                  <span>PARSE</span>
-                  <span>TOKENS</span>
-                </div>
-                <div className="divide-y divide-zinc-200/60 dark:divide-zinc-800/60 text-zinc-600 dark:text-zinc-400">
-                  <div className="grid grid-cols-4 py-1 px-1.5">
-                    <span className="text-zinc-900 dark:text-zinc-200 font-bold">01</span>
-                    <span>10-K</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">42ms</span>
-                    <span>18.4k</span>
-                  </div>
-                  <div className="grid grid-cols-4 py-1 px-1.5">
-                    <span className="text-zinc-900 dark:text-zinc-200 font-bold">02</span>
-                    <span>P&amp;L</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">18ms</span>
-                    <span>6.2k</span>
-                  </div>
-                  <div className="grid grid-cols-4 py-1 px-1.5">
-                    <span className="text-zinc-900 dark:text-zinc-200 font-bold">03</span>
-                    <span>SPEC</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">29ms</span>
-                    <span>11.9k</span>
-                  </div>
-                </div>
+              {/* Table Footer */}
+              <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                <span>ZERO LOSS RECONSTRUCTION</span>
+                <span>100% IN-RAM</span>
               </div>
-            </div>
-
-            {/* Table Footer */}
-            <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-              <span>ZERO LOSS RECONSTRUCTION</span>
-              <span>100% IN-RAM</span>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
 
         {/* --- 4. Mid-Bottom Right: LLM Architecture & Markdown Specification Page --- */}
         <motion.div
-          style={{
-            y: yReadme,
-            rotateZ: rotZReadme,
-            rotateX: rotXReadme,
-            rotateY: rotYReadme,
-            transformStyle: "preserve-3d",
-            willChange: "transform",
-          }}
+          initial={{ opacity: 0, y: 50, scale: 0.88, filter: "blur(8px)" }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.42, ease: [0.16, 1, 0.3, 1] }}
           className="hidden md:block absolute bottom-12 right-0 sm:right-4 lg:right-12 opacity-[0.14] dark:opacity-[0.18]"
         >
           <motion.div
-            animate={{ y: [0, 8, 0], rotateZ: [0, 1.2, 0] }}
-            transition={{ duration: 7.4, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
-            style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
-            className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
+            style={{
+              y: yReadme,
+              rotateZ: rotZReadme,
+              rotateX: rotXReadme,
+              rotateY: rotYReadme,
+              transformStyle: "preserve-3d",
+              willChange: "transform",
+            }}
           >
-            <div>
-              {/* Specification Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
-                <div className="flex items-center gap-1.5">
-                  <FileCode className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-zinc-100">
-                    SPECIFICATION.md
-                  </span>
+            <motion.div
+              animate={{ y: [0, 8, 0], rotateZ: [0, 1.2, 0] }}
+              transition={{ duration: 7.4, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
+              style={{ willChange: "transform", transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
+              className="w-56 sm:w-64 h-52 sm:h-56 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/90 dark:bg-zinc-900/85 p-3.5 shadow-xl text-left flex flex-col justify-between"
+            >
+              <div>
+                {/* Specification Header */}
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
+                  <div className="flex items-center gap-1.5">
+                    <FileCode className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-[11px] font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                      SPECIFICATION.md
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400">GFM</span>
                 </div>
-                <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400">GFM</span>
+
+                {/* Markdown Content Blocks */}
+                <div className="mt-2.5 space-y-1.5 font-mono text-[11px]">
+                  <div className="text-amber-600 dark:text-amber-400 font-bold"># DocDrop Studio</div>
+                  <div className="text-zinc-500 dark:text-zinc-400 pl-2 border-l-2 border-amber-500/40">
+                    &gt; Local browser execution only.
+                  </div>
+                  <div className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-800/90 text-zinc-800 dark:text-zinc-200 text-[11px]">
+                    <code>$ parse --format markdown</code>
+                    <div className="text-emerald-600 dark:text-emerald-400 mt-0.5">✔ 4,820 tokens chunked</div>
+                  </div>
+                </div>
               </div>
 
-              {/* Markdown Content Blocks */}
-              <div className="mt-2.5 space-y-1.5 font-mono text-[11px]">
-                <div className="text-amber-600 dark:text-amber-400 font-bold"># DocDrop Studio</div>
-                <div className="text-zinc-500 dark:text-zinc-400 pl-2 border-l-2 border-amber-500/40">
-                  &gt; Local browser execution only.
-                </div>
-                <div className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-800/90 text-zinc-800 dark:text-zinc-200 text-[11px]">
-                  <code>$ parse --format markdown</code>
-                  <div className="text-emerald-600 dark:text-emerald-400 mt-0.5">✔ 4,820 tokens chunked</div>
-                </div>
+              {/* Markdown Footer */}
+              <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
+                <span>TOKEN OPTIMIZED</span>
+                <span className="text-amber-500">READY</span>
               </div>
-            </div>
-
-            {/* Markdown Footer */}
-            <div className="pt-2 border-t border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between text-[11px] font-mono text-zinc-400 dark:text-zinc-500">
-              <span>TOKEN OPTIMIZED</span>
-              <span className="text-amber-500">READY</span>
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
 
         {/* --- 5. Deep Left Flank: Redacted Intelligence Dossier --- */}
         <motion.div
-          style={{ y: yRedacted, rotateZ: rotZRedacted, willChange: "transform" }}
+          initial={{ opacity: 0, x: -30, scale: 0.9, filter: "blur(6px)" }}
+          animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="hidden xl:block absolute top-1/2 -translate-y-1/2 -left-6 opacity-[0.10] dark:opacity-[0.14]"
         >
-          <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-mono font-bold text-purple-600 dark:text-purple-400">
-                VAULT DOSSIER
-              </span>
-              <Lock className="w-3 h-3 text-purple-500" />
+          <motion.div style={{ y: yRedacted, rotateZ: rotZRedacted, willChange: "transform" }}>
+            <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-mono font-bold text-purple-600 dark:text-purple-400">
+                  VAULT DOSSIER
+                </span>
+                <Lock className="w-3 h-3 text-purple-500" />
+              </div>
+              <div className="h-2.5 bg-zinc-950 dark:bg-zinc-100 rounded-xs w-4/5 my-2 opacity-90" />
+              <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-full my-1.5" />
+              <div className="h-2.5 bg-zinc-950 dark:bg-zinc-100 rounded-xs w-3/5 my-2 opacity-90" />
+              <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-4/5 my-1.5" />
+              <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-400">
+                CANVAS RASTERIZED
+              </div>
             </div>
-            <div className="h-2.5 bg-zinc-950 dark:bg-zinc-100 rounded-xs w-4/5 my-2 opacity-90" />
-            <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-full my-1.5" />
-            <div className="h-2.5 bg-zinc-950 dark:bg-zinc-100 rounded-xs w-3/5 my-2 opacity-90" />
-            <div className="h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full w-4/5 my-1.5" />
-            <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[11px] font-mono text-zinc-400">
-              CANVAS RASTERIZED
-            </div>
-          </div>
+          </motion.div>
         </motion.div>
 
         {/* --- 6. Deep Right Flank: Organized Multipage Blueprint --- */}
         <motion.div
-          style={{ y: yBlueprint, rotateZ: rotZBlueprint, willChange: "transform" }}
+          initial={{ opacity: 0, x: 30, scale: 0.9, filter: "blur(6px)" }}
+          animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 1.1, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="hidden xl:block absolute top-1/2 -translate-y-1/2 -right-6 opacity-[0.10] dark:opacity-[0.14]"
         >
-          <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200">
-                PAGES 1..4
-              </span>
-              <FileText className="w-3 h-3 text-zinc-400" />
+          <motion.div style={{ y: yBlueprint, rotateZ: rotZBlueprint, willChange: "transform" }}>
+            <div className="w-44 h-52 rounded-2xl border border-zinc-300 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-900/60 p-3 shadow-lg text-left">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200">
+                  PAGES 1..4
+                </span>
+                <FileText className="w-3 h-3 text-zinc-400" />
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 my-2">
+                <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
+                  1
+                </div>
+                <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
+                  2
+                </div>
+                <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
+                  3
+                </div>
+                <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
+                  4
+                </div>
+              </div>
+              <div className="mt-2 text-[11px] font-mono text-zinc-400">
+                ORGANIZED &amp; FLATTENED
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5 my-2">
-              <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
-                1
-              </div>
-              <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
-                2
-              </div>
-              <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
-                3
-              </div>
-              <div className="h-12 rounded border border-zinc-300/80 dark:border-zinc-700/80 bg-zinc-100/80 dark:bg-zinc-800/60 flex items-center justify-center font-mono text-[11px] font-bold">
-                4
-              </div>
-            </div>
-            <div className="mt-2 text-[11px] font-mono text-zinc-400">
-              ORGANIZED &amp; FLATTENED
-            </div>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
 
@@ -435,7 +525,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
       <div className="relative z-10 max-w-4xl mx-auto">
         {/* Top Status Pill */}
         <motion.div
-          variants={itemVariants}
+          variants={statusBadgeVariants}
           className="inline-flex items-center justify-center mb-8"
         >
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-[var(--surface)]/80 backdrop-blur-md shadow-2xs text-xs font-semibold text-zinc-800 dark:text-zinc-200">
@@ -445,7 +535,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
         </motion.div>
 
         {/* Main Headline strictly in 2 Lines with 3 Curated Aesthetic Fonts & Kinetic Transitions */}
-        <motion.div variants={itemVariants} className="max-w-4xl mx-auto space-y-1 sm:space-y-1.5 px-2">
+        <motion.div variants={headlineVariants} className="max-w-4xl mx-auto space-y-1 sm:space-y-1.5 px-2">
           <h1 className="text-2xl min-[360px]:text-3xl sm:text-5xl md:text-6xl lg:text-[4.25rem] xl:text-7xl tracking-tight leading-[1.14] sm:leading-[1.1] select-none">
             {/* Line 1: Bold Contemporary Display Sans */}
             <span className="block font-sans-display font-extrabold tracking-[-0.035em] text-zinc-950 dark:text-white whitespace-normal sm:whitespace-nowrap">
@@ -494,7 +584,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* Subhead with Clean Natural Prose Typography (Zero Badges or Boxes) */}
         <motion.p
-          variants={itemVariants}
+          variants={subheadVariants}
           style={{ textWrap: "balance" }}
           className="mt-5 sm:mt-6 text-sm sm:text-base text-zinc-600 dark:text-zinc-300 max-w-3xl mx-auto leading-relaxed font-sans-display text-balance text-center px-2"
         >
@@ -503,7 +593,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* CTA Buttons: Compact Precision Engineering Scale & Tactile Spring Physics */}
         <motion.div
-          variants={itemVariants}
+          variants={ctaGroupVariants}
           className="mt-6 sm:mt-7 flex flex-row items-center justify-center gap-2.5 sm:gap-3 px-4 mx-auto"
         >
           {/* Primary Action Button: Open Document Workbench */}
@@ -536,7 +626,7 @@ export function Hero({ onStartClick, onPricingClick }: HeroProps) {
 
         {/* Precision Instrument Readout Strip with Monospace Engineering Typography */}
         <motion.div
-          variants={itemVariants}
+          variants={metricsStripVariants}
           className="mt-10 sm:mt-12 max-w-3xl mx-auto rounded-2xl border border-zinc-200/90 dark:border-zinc-800 bg-[var(--surface)]/90 backdrop-blur-md shadow-2xs overflow-hidden grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200 dark:divide-zinc-800 text-left transition-colors"
         >
           <div className="p-3.5 sm:p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">

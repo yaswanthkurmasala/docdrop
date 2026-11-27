@@ -166,7 +166,16 @@ export function DocDropStudio({
   const effectiveIsPro = isPro || user?.plan === "pro";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)] selection:bg-[var(--accent-subtle)]">
+    <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)] selection:bg-[var(--accent-subtle)] relative">
+      {/* Sleek Top Luminous Boot Beam on Website Load */}
+      <motion.div
+        initial={{ scaleX: 0, opacity: 1 }}
+        animate={{ scaleX: 1, opacity: [1, 1, 0] }}
+        transition={{ duration: 0.85, times: [0, 0.75, 1], ease: [0.16, 1, 0.3, 1] }}
+        style={{ originX: 0 }}
+        className="fixed top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500 via-emerald-400 to-indigo-500 z-[100] pointer-events-none shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+      />
+
       {/* Global In-Browser Drag-and-Drop Ingestion */}
       <GlobalDropzone onSelectTool={handleSelectTool} />
 
@@ -202,9 +211,12 @@ export function DocDropStudio({
           />
         )}
 
-        {/* Active Tool Workspace Shell */}
-        <section
+        {/* Active Tool Workspace Shell with Apple-grade Dock Entrance */}
+        <motion.section
           id="active-tool-workspace"
+          initial={{ opacity: 0, y: 32, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
           className="scroll-mt-20 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full"
         >
           <h2 className="sr-only">Document Workbench &amp; Active Instrument</h2>
@@ -354,7 +366,7 @@ export function DocDropStudio({
               </motion.div>
             )}
           </AnimatePresence>
-        </section>
+        </motion.section>
 
         {/* Optional Dedicated Tool SEO Section (How-to, FAQ, Related Tools) */}
         {toolSeoContent}

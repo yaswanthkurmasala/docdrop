@@ -261,9 +261,9 @@ export function Header({
   return (
     <div ref={menuRef} className="sticky top-0 z-50 w-full">
       <motion.header
-        initial={{ y: -16, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: motionTokens.duration.fast, ease: motionTokens.ease.standard }}
+        initial={{ y: -24, opacity: 0, filter: "blur(4px)" }}
+        animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className={`w-full transition-all duration-200 border-b ${
           isScrolled || isMegaMenuOpen
             ? "border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-xs"
