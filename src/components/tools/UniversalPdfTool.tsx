@@ -53,6 +53,7 @@ import {
   AlignCenter,
   AlignRight,
   Globe,
+  X,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
@@ -518,6 +519,21 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   });
   const [signProgress, setSignProgress] = useState<{ percent: number; message: string } | null>(null);
   const [signResultData, setSignResultData] = useState<SignPdfResult | null>(null);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
+
+  const handleOpenPreview = () => {
+    if (!result?.pdfBytes) return;
+    const blob = new Blob([result.pdfBytes as any], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    setPreviewModalUrl(url);
+  };
+
+  const handleClosePreview = () => {
+    if (previewModalUrl) {
+      try { URL.revokeObjectURL(previewModalUrl); } catch {}
+    }
+    setPreviewModalUrl(null);
+  };
 
   // OCR Text Layer Audit parameters
   const [ocrMode, setOcrMode] = useState<"audit" | "vision" | "searchable_pdf">("audit");
@@ -9139,6 +9155,18 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 <span>Download {result.fileName.split(".").pop()?.toUpperCase()}</span>
               </motion.button>
 
+              {result.pdfBytes && (
+                <button
+                  type="button"
+                  onClick={handleOpenPreview}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-colors cursor-pointer"
+                  title="Preview document directly in-browser before downloading"
+                >
+                  <Eye className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>Preview In-Browser</span>
+                </button>
+              )}
+
               {user && (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -9171,6 +9199,65 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 Process Another File
               </button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* In-Browser PDF Quick Preview Modal */}
+      <AnimatePresence>
+        {previewModalUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
+            onClick={handleClosePreview}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-5xl h-[85vh] bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/80">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/60">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-white truncate max-w-md">
+                    {result?.fileName}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    100% In-RAM
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    className="px-3.5 py-1.5 bg-white text-zinc-950 text-xs font-bold rounded-xl hover:bg-zinc-200 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClosePreview}
+                    className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 w-full bg-zinc-950 relative">
+                <iframe
+                  src={`${previewModalUrl}#toolbar=1&navpanes=0`}
+                  className="w-full h-full border-0 rounded-b-3xl"
+                  title="PDF Preview"
+                />
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

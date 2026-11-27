@@ -14,11 +14,12 @@ import { Footer } from "@/components/Footer";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon } from "lucide-react";
+import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY } from "@/lib/tools-registry";
 import { GlobalDropzone } from "@/components/GlobalDropzone";
+import { CommandPalette } from "@/components/CommandPalette";
 
 interface DocDropStudioProps {
   initialToolId?: string;
@@ -37,8 +38,21 @@ export function DocDropStudio({
   const [authModalTab, setAuthModalTab] = useState<"login" | "signup">("login");
   const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null);
   const [activeToolId, setActiveToolId] = useState<string>(initialToolId);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   const { user, setProStatus } = useAuth();
+
+  // Global Keyboard Command Palette (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleUnlockPro = useCallback(() => {
     setIsPro(true);
@@ -162,7 +176,15 @@ export function DocDropStudio({
         onOpenLicenseModal={handleOpenLicenseModal}
         onSelectTool={handleSelectTool}
         onOpenAuthModal={handleOpenAuthModal}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         isPro={effectiveIsPro}
+      />
+
+      {/* Global ⌘K Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSelectTool={handleSelectTool}
       />
 
       {/* Main Content */}
@@ -265,6 +287,19 @@ export function DocDropStudio({
                   <span>{activeDef.name}</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap min-h-[38px]"
+                title="Search and jump to any tool (⌘K / Ctrl+K)"
+              >
+                <Search className="w-3.5 h-3.5 text-zinc-400" />
+                <span className="hidden sm:inline">Jump</span>
+                <kbd className="px-1 py-0.2 rounded bg-zinc-200/80 dark:bg-zinc-800 text-[9px] font-mono text-zinc-500">
+                  ⌘K
+                </kbd>
+              </button>
 
               <button
                 onClick={() => {

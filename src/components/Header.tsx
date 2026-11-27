@@ -41,6 +41,7 @@ import {
   Menu,
   X,
   Flame,
+  Search,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -53,6 +54,7 @@ interface HeaderProps {
   onOpenLicenseModal: () => void;
   onSelectTool: (toolId: string) => void;
   onOpenAuthModal: (tab?: "login" | "signup") => void;
+  onOpenCommandPalette?: () => void;
   isPro: boolean;
 }
 
@@ -200,6 +202,7 @@ export function Header({
   onOpenLicenseModal,
   onSelectTool,
   onOpenAuthModal,
+  onOpenCommandPalette,
   isPro,
 }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -418,6 +421,32 @@ export function Header({
 
           {/* Action Buttons & Auth (Perfect vertical alignment) */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Quick Command Palette Search Trigger Button */}
+            {onOpenCommandPalette && (
+              <button
+                type="button"
+                onClick={onOpenCommandPalette}
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all shadow-2xs group cursor-pointer"
+                title="Search all 33+ tools (⌘K / Ctrl+K)"
+              >
+                <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200" />
+                <span>Search tools...</span>
+                <kbd className="px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 border border-zinc-300/60 dark:border-zinc-700/60">
+                  ⌘K
+                </kbd>
+              </button>
+            )}
+
+            {onOpenCommandPalette && (
+              <button
+                type="button"
+                onClick={onOpenCommandPalette}
+                className="md:hidden p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:hover:text-white bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 cursor-pointer"
+                title="Search all tools (⌘K)"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            )}
             {/* 3-State Theme Switcher: System (Default), Light, Dark - Animated Pill & Origin Reveal */}
             <div
               className="relative isolate inline-flex items-center p-0.5 rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 shadow-2xs"

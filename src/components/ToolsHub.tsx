@@ -113,24 +113,56 @@ const getToolIcon = (id: string) => {
   }
 };
 
-const getCategoryBg = (category: string) => {
+const getCategoryStyles = (category: string) => {
   switch (category) {
     case "organize":
-      return "bg-rose-500/10 border-rose-500/25 text-rose-600 dark:text-rose-400";
+      return {
+        iconBg: "bg-rose-500/10 dark:bg-rose-500/15 border-rose-500/25 text-rose-600 dark:text-rose-400",
+        sheen: "from-rose-500/[0.08] dark:from-rose-500/[0.12]",
+        pill: "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/20",
+      };
     case "optimize":
-      return "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400";
+      return {
+        iconBg: "bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/25 text-emerald-600 dark:text-emerald-400",
+        sheen: "from-emerald-500/[0.08] dark:from-emerald-500/[0.12]",
+        pill: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+      };
     case "convertTo":
-      return "bg-amber-500/10 border-amber-500/25 text-amber-700 dark:text-amber-300";
+      return {
+        iconBg: "bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/25 text-amber-700 dark:text-amber-300",
+        sheen: "from-amber-500/[0.08] dark:from-amber-500/[0.12]",
+        pill: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/20",
+      };
     case "convertFrom":
-      return "bg-blue-500/10 border-blue-500/25 text-blue-600 dark:text-blue-400";
+      return {
+        iconBg: "bg-blue-500/10 dark:bg-blue-500/15 border-blue-500/25 text-blue-600 dark:text-blue-400",
+        sheen: "from-blue-500/[0.08] dark:from-blue-500/[0.12]",
+        pill: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20",
+      };
     case "edit":
-      return "bg-purple-500/10 border-purple-500/25 text-purple-600 dark:text-purple-400";
+      return {
+        iconBg: "bg-purple-500/10 dark:bg-purple-500/15 border-purple-500/25 text-purple-600 dark:text-purple-400",
+        sheen: "from-purple-500/[0.08] dark:from-purple-500/[0.12]",
+        pill: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20",
+      };
     case "security":
-      return "bg-sky-500/10 border-sky-500/25 text-sky-600 dark:text-sky-400";
+      return {
+        iconBg: "bg-sky-500/10 dark:bg-sky-500/15 border-sky-500/25 text-sky-600 dark:text-sky-400",
+        sheen: "from-sky-500/[0.08] dark:from-sky-500/[0.12]",
+        pill: "text-sky-600 dark:text-sky-400 bg-sky-500/10 border-sky-500/20",
+      };
     case "intelligence":
-      return "bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400";
+      return {
+        iconBg: "bg-indigo-500/10 dark:bg-indigo-500/15 border-indigo-500/25 text-indigo-600 dark:text-indigo-400",
+        sheen: "from-indigo-500/[0.08] dark:from-indigo-500/[0.12]",
+        pill: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+      };
     default:
-      return "bg-zinc-500/10 border-zinc-500/25 text-zinc-600 dark:text-zinc-400";
+      return {
+        iconBg: "bg-zinc-500/10 dark:bg-zinc-500/15 border-zinc-500/25 text-zinc-600 dark:text-zinc-400",
+        sheen: "from-zinc-500/[0.08] dark:from-zinc-500/[0.12]",
+        pill: "text-zinc-600 dark:text-zinc-400 bg-zinc-500/10 border-zinc-500/20",
+      };
   }
 };
 
@@ -138,28 +170,28 @@ const renderToolBadge = (badge: string) => {
   switch (badge) {
     case "Popular":
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold tracking-tight font-sans bg-rose-500/[0.08] dark:bg-rose-500/[0.14] text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0 select-none">
-          <Flame className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider font-mono uppercase bg-rose-500/10 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25 shrink-0 select-none shadow-xs">
+          <Flame className="w-2.5 h-2.5 text-rose-500 animate-pulse shrink-0" />
           <span>Popular</span>
         </span>
       );
     case "AI":
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold tracking-tight font-sans bg-indigo-500/[0.08] dark:bg-indigo-500/[0.14] text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 select-none">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider font-mono uppercase bg-indigo-500/10 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25 shrink-0 select-none shadow-xs">
           <Sparkles className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
           <span>AI</span>
         </span>
       );
     case "Pro":
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold tracking-tight font-sans bg-amber-500/[0.08] dark:bg-amber-500/[0.14] text-amber-700 dark:text-amber-300 border border-amber-500/25 shrink-0 select-none">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider font-mono uppercase bg-amber-500/10 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25 shrink-0 select-none shadow-xs">
           <Zap className="w-2.5 h-2.5 text-amber-500 shrink-0" />
           <span>Pro</span>
         </span>
       );
     default:
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium tracking-tight font-sans bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700/80 shrink-0 select-none">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wider font-mono uppercase bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-zinc-700/80 shrink-0 select-none">
           <span>{badge}</span>
         </span>
       );
@@ -208,16 +240,23 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search tools (merge, split, markdown)..."
-            className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-zinc-950 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:border-zinc-950 dark:focus:border-zinc-400 shadow-xs transition-colors"
+            className="w-full pl-10 pr-16 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-zinc-950 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:border-zinc-950 dark:focus:border-zinc-400 shadow-xs transition-colors"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-0.5 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {searchQuery ? (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-0.5 cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700/80 pointer-events-none">
+                ⌘K
+              </kbd>
+            )}
+          </div>
         </div>
       </div>
 
@@ -261,10 +300,33 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
         })}
       </div>
 
-      {/* Tools Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
+      {/* Tools Cards Grid or Empty State */}
+      {filteredTools.length === 0 ? (
+        <div className="py-16 text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 p-8">
+          <div className="inline-flex p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3">
+            <Search className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+            No tools found
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto mb-4">
+            No document tools matched &ldquo;{searchQuery}&rdquo;. Try searching for &ldquo;compress&rdquo;, &ldquo;merge&rdquo;, or &ldquo;pdf&rdquo;.
+          </p>
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setSelectedCategory("all");
+            }}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
         {filteredTools.map((tool) => {
           const isActive = activeToolId === tool.id;
+          const styles = getCategoryStyles(tool.category);
 
           return (
             <Link
@@ -276,46 +338,65 @@ export function ToolsHub({ onSelectTool, activeToolId }: ToolsHubProps) {
                   onSelectTool(tool.id);
                 }
               }}
-              className="block h-full"
+              className="block h-full group outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-2xl"
             >
               <motion.div
-                whileHover={{ y: -2, transition: motionTokens.spring.snappy }}
+                whileHover={{ y: -3, transition: motionTokens.spring.snappy }}
                 whileTap={{ scale: 0.98 }}
-                className={`group h-full p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between shadow-2xs will-change-[transform] ${
+                className={`relative overflow-hidden h-full p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between will-change-[transform] ${
                   isActive
-                    ? "border-zinc-950 dark:border-white bg-white dark:bg-zinc-900 ring-1 ring-zinc-950 dark:ring-white shadow-xs"
-                    : "border-zinc-200/90 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-400 dark:hover:border-zinc-700 hover:shadow-xs"
+                    ? "border-emerald-500/80 dark:border-emerald-400/80 bg-white dark:bg-zinc-900 shadow-md ring-1 ring-emerald-500/50"
+                    : "border-zinc-200/90 dark:border-zinc-800/90 bg-white dark:bg-zinc-900/95 hover:border-zinc-400/80 dark:hover:border-zinc-700 shadow-2xs hover:shadow-lg hover:shadow-zinc-950/5 dark:hover:shadow-black/30"
                 }`}
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className={`p-2 rounded-lg border shadow-2xs ${getCategoryBg(tool.category)}`}>
+                {/* Ambient Category Gradient Sheen on hover */}
+                <div
+                  className={`absolute -top-12 -right-12 w-28 h-28 rounded-full bg-gradient-to-br ${styles.sheen} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl pointer-events-none`}
+                />
+
+                {/* Inner Top Highlight Rim */}
+                <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent pointer-events-none" />
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div
+                      className={`p-2.5 rounded-xl border shadow-2xs transition-transform duration-200 ease-out group-hover:scale-105 group-hover:-translate-y-0.5 ${styles.iconBg}`}
+                    >
                       {getToolIcon(tool.id)}
                     </div>
                     {tool.badge && renderToolBadge(tool.badge)}
                   </div>
 
-                  <h3 className="text-xs sm:text-[13px] font-bold font-sans-display tracking-tight text-zinc-950 dark:text-white mb-1 leading-snug">
-                    <span>{tool.name}</span>
+                  <h3 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-1.5 leading-snug group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    {tool.name}
                   </h3>
-                  <p className="text-[11px] text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
                     {tool.description}
                   </p>
                 </div>
 
-                <div className="mt-3.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-900 dark:text-zinc-100">
-                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400 dark:text-zinc-500 font-medium">
-                    {tool.categoryLabel.split(" ")[0]}
-                  </span>
-                  <span className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-zinc-700 dark:text-zinc-300">
-                    {isActive ? "Active Now" : "Open Tool"} &rarr;
+                <div className="relative z-10 mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`text-[9px] uppercase font-mono font-semibold tracking-wider px-1.5 py-0.5 rounded border ${styles.pill}`}
+                    >
+                      {tool.categoryLabel.split(" ")[0]}
+                    </span>
+                    <span className="text-[9px] uppercase font-mono tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800/90 text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60">
+                      {tool.accepts.slice(0, 2).join(", ").toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
+                    <span>{isActive ? "Active" : "Open"}</span>
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform duration-150" />
                   </span>
                 </div>
               </motion.div>
             </Link>
           );
         })}
-      </div>
+        </div>
+      )}
     </section>
   );
 }
