@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import {
@@ -20,6 +20,8 @@ import {
   ExternalLink,
   Flame,
   Layers,
+  Clock,
+  HardDriveDownload,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
@@ -49,11 +51,14 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
   const [selectedResolution, setSelectedResolution] = useState<VideoResolutionOption | null>(null);
   const [customFileName, setCustomFileName] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState("");
+  const [downloadPercentage, setDownloadPercentage] = useState(0);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [activeDownloadUrl, setActiveDownloadUrl] = useState<string | null>(null);
   const [activeDownloadName, setActiveDownloadName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [hasPasted, setHasPasted] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Handle URL fetch
   const handleFetchVideo = async (targetUrl?: string) => {
@@ -68,6 +73,8 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setVideoData(null);
     setDownloadSuccess(false);
     setActiveDownloadUrl(null);
+    setDownloadProgress("");
+    setDownloadPercentage(0);
 
     try {
       const res = await fetch("/api/video-downloader/info", {
@@ -115,13 +122,15 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     }
   };
 
-  // Trigger download stream
-  const handleDownload = () => {
+  // Trigger download stream with live progress and verified blob creation
+  const handleDownload = async () => {
     if (!videoData || !selectedResolution) return;
 
     setIsDownloading(true);
     setError(null);
     setDownloadSuccess(false);
+    setDownloadPercentage(0);
+    setDownloadProgress("Initiating high-speed stream...");
 
     const ext = selectedResolution.format;
     const effectiveBase = computeEffectiveFileName(videoData.defaultFileName, customFileName).replace(/\.[^/.]+$/, "");
@@ -136,27 +145,103 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setActiveDownloadUrl(downloadEndpoint);
     setActiveDownloadName(finalFileName);
 
-    // Reliable browser download trigger via anchor
-    const a = document.createElement("a");
-    a.href = downloadEndpoint;
-    a.download = finalFileName;
-    a.target = "_self";
-    document.body.appendChild(a);
-    a.click();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-    setTimeout(() => {
-      try {
-        document.body.removeChild(a);
-      } catch {}
+    try {
+      const res = await fetch(downloadEndpoint, { signal: controller.signal });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Download failed with HTTP ${res.status}.`);
+      }
+
+      const contentLength = res.headers.get("content-length");
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+      const reader = res.body?.getReader();
+
+      if (!reader) {
+        throw new Error("Unable to establish readable media stream.");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let receivedBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          receivedBytes += value.length;
+
+          if (totalBytes > 0) {
+            const pct = Math.min(99, Math.round((receivedBytes / totalBytes) * 100));
+            setDownloadPercentage(pct);
+            setDownloadProgress(
+              `Downloading: ${pct}% (${(receivedBytes / (1024 * 1024)).toFixed(1)} MB / ${(totalBytes / (1024 * 1024)).toFixed(1)} MB)`
+            );
+          } else {
+            setDownloadProgress(
+              `Streaming: ${(receivedBytes / (1024 * 1024)).toFixed(2)} MB received...`
+            );
+          }
+        }
+      }
+
+      setDownloadProgress("Assembling file and saving to disk...");
+      setDownloadPercentage(100);
+
+      const mimeType =
+        res.headers.get("content-type") ||
+        (selectedResolution.format === "mp3" ? "audio/mpeg" : "video/mp4");
+
+      const blob = new Blob(chunks as BlobPart[], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = finalFileName;
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => {
+        try {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        } catch {}
+      }, 2000);
+
       setIsDownloading(false);
       setDownloadSuccess(true);
+      setDownloadProgress(`Saved ${finalFileName} successfully!`);
+
       try {
         confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
       } catch {}
-    }, 1200);
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        setError("Download was cancelled.");
+      } else {
+        setError(err?.message || "Failed to download media stream. You can try the direct download link below.");
+      }
+      setIsDownloading(false);
+    } finally {
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelDownload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsDownloading(false);
+    setDownloadProgress("");
+    setDownloadPercentage(0);
   };
 
   const resetAll = () => {
+    handleCancelDownload();
     setUrlInput("");
     setVideoData(null);
     setSelectedResolution(null);
@@ -164,6 +249,8 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setError(null);
     setDownloadSuccess(false);
     setActiveDownloadUrl(null);
+    setDownloadProgress("");
+    setDownloadPercentage(0);
   };
 
   const has4KOption = videoData?.resolutions.some((r) => r.is4K || r.id === "2160p");
@@ -180,7 +267,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
           </span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-          Download Videos in All Resolutions (up to 4K)
+          Download Videos in All Resolutions (up to 4K) & MP3
         </h2>
         <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
           Paste any link from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, Vimeo & download directly in Ultra HD 4K, 2K, 1080p, 720p, 480p, or high-fidelity MP3.
@@ -284,13 +371,32 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex items-start gap-2.5"
+            className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-200 flex flex-col gap-2"
           >
-            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-bold">Notice:</span>
-              <p>{error}</p>
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-0.5 flex-1">
+                <span className="font-bold">Download Notice:</span>
+                <p>{error}</p>
+              </div>
             </div>
+            {activeDownloadUrl && (
+              <div className="pt-1 border-t border-rose-200 dark:border-rose-800/60 flex items-center justify-between">
+                <span className="text-[11px] text-rose-700 dark:text-rose-300">
+                  Alternative: Try direct browser stream
+                </span>
+                <a
+                  href={activeDownloadUrl}
+                  download={activeDownloadName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-bold text-rose-800 dark:text-rose-200 underline hover:text-rose-950 text-xs cursor-pointer"
+                >
+                  <span>Direct Download Link</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
           </motion.div>
         )}
       </div>
@@ -467,8 +573,37 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
               />
             </div>
 
-            {/* Direct Link Banner if download was initiated */}
-            {downloadSuccess && activeDownloadUrl && (
+            {/* Live Progress Bar Card during download */}
+            {isDownloading && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-violet-200 dark:border-violet-900/60 shadow-inner space-y-2.5"
+              >
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="flex items-center gap-2 text-zinc-900 dark:text-white font-mono">
+                    <RefreshCw className="w-3.5 h-3.5 text-violet-500 animate-spin" />
+                    <span>{downloadProgress || "Downloading stream..."}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCancelDownload}
+                    className="text-zinc-500 hover:text-rose-500 text-[11px] underline cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-linear-to-r from-violet-600 to-indigo-600 h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${downloadPercentage > 0 ? downloadPercentage : 15}%` }}
+                  />
+                </div>
+              </motion.div>
+            )}
+
+            {/* Direct Link Banner if download was completed */}
+            {downloadSuccess && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -477,17 +612,21 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>
-                    Your download has started for <strong>{activeDownloadName}</strong>! Check your browser's download shelf.
+                    Successfully downloaded <strong>{activeDownloadName}</strong>! Check your device Downloads folder.
                   </span>
                 </div>
-                <a
-                  href={activeDownloadUrl}
-                  download={activeDownloadName}
-                  className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300 underline hover:text-emerald-800 cursor-pointer text-right shrink-0"
-                >
-                  <span>Click here if download didn't start</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                {activeDownloadUrl && (
+                  <a
+                    href={activeDownloadUrl}
+                    download={activeDownloadName}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300 underline hover:text-emerald-800 cursor-pointer text-right shrink-0"
+                  >
+                    <span>Download again</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </motion.div>
             )}
 
@@ -520,16 +659,16 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                   {isDownloading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Streaming {selectedResolution?.quality}...</span>
+                      <span>{downloadPercentage > 0 ? `${downloadPercentage}%` : "Streaming..."}</span>
                     </>
                   ) : downloadSuccess ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Download Initiated!</span>
+                      <span>Download Ready!</span>
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <HardDriveDownload className="w-4 h-4" />
                       <span>
                         Download {selectedResolution?.quality} ({selectedResolution?.format.toUpperCase()})
                       </span>

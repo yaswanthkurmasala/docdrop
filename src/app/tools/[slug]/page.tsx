@@ -51,9 +51,9 @@ export async function generateMetadata({
       description: profile.seoDescription,
       images: [
         {
-          url: "/logo.png",
-          width: 237,
-          height: 237,
+          url: "/og-image.png",
+          width: 1200,
+          height: 630,
           alt: `${tool.name} — ${SITE_NAME}`,
         },
       ],
@@ -62,7 +62,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: profile.seoTitle,
       description: profile.seoDescription,
-      images: ["/logo.png"],
+      images: ["/og-image.png"],
     },
   };
 }

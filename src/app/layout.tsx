@@ -31,10 +31,10 @@ export const metadata: Metadata = {
       "30+ free PDF and document tools running 100% inside your browser RAM. Merge, Split, Compress, PDF to Word, PDF to Excel, PDF to Markdown, OCR, Sign & Redact privately.",
     images: [
       {
-        url: "/logo.png",
-        width: 237,
-        height: 237,
-        alt: "DocDrop Official Logo",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DocDrop — Private In-Browser PDF & Document Studio",
       },
     ],
   },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     title: "DocDrop — Private In-Browser PDF & Document Studio",
     description:
       "30+ free PDF & document instruments with zero cloud uploads. Merge, Split, Compress, PDF to Word, Excel, and LLM Markdown.",
-    images: ["/logo.png"],
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,

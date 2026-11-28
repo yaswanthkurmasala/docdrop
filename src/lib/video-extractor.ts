@@ -1,5 +1,5 @@
-import { spawn, execFile } from "child_process";
-import { Readable } from "stream";
+import { spawn, execFile, spawnSync, ChildProcess } from "child_process";
+import { Readable, PassThrough } from "stream";
 import path from "path";
 import fs from "fs";
 
@@ -71,24 +71,62 @@ export function sanitizeFileName(name: string): string {
   );
 }
 
-/**
- * Resolves the location of a usable ffmpeg executable.
- */
+let _cachedPythonAvailable: boolean | null = null;
+export function isPythonAvailable(): boolean {
+  if (_cachedPythonAvailable !== null) return _cachedPythonAvailable;
+  try {
+    const res = spawnSync("python", ["--version"], { timeout: 2000 });
+    _cachedPythonAvailable = res.status === 0;
+  } catch {
+    _cachedPythonAvailable = false;
+  }
+  return _cachedPythonAvailable;
+}
+
+let _cachedFfmpegPath: string | null = null;
 export function getFfmpegPath(): string | null {
-  const candidatePaths = [
-    path.resolve(process.cwd(), "bin/ffmpeg.exe"),
-    path.resolve(process.cwd(), "web-app/bin/ffmpeg.exe"),
-    path.resolve(process.cwd(), "node_modules/ffmpeg-static/ffmpeg.exe"),
-    path.resolve(process.cwd(), "web-app/node_modules/ffmpeg-static/ffmpeg.exe"),
-    "C:\\Users\\yaswa\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\static_ffmpeg\\bin\\win32\\ffmpeg.EXE",
+  if (_cachedFfmpegPath !== null) return _cachedFfmpegPath || null;
+  const isWindows = process.platform === "win32";
+  const binaryName = isWindows ? "ffmpeg.exe" : "ffmpeg";
+
+  const candidates = [
+    path.resolve(process.cwd(), `bin/${binaryName}`),
+    path.resolve(process.cwd(), `web-app/bin/${binaryName}`),
+    path.resolve(process.cwd(), `node_modules/ffmpeg-static/${binaryName}`),
+    path.resolve(process.cwd(), `web-app/node_modules/ffmpeg-static/${binaryName}`),
   ];
 
-  for (const p of candidatePaths) {
+  if (isWindows) {
+    candidates.push(
+      "C:\\Users\\yaswa\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\static_ffmpeg\\bin\\win32\\ffmpeg.EXE"
+    );
+  }
+
+  for (const c of candidates) {
     try {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(c)) {
+        const res = spawnSync(c, ["-version"], { timeout: 2000 });
+        if (res.status === 0) {
+          _cachedFfmpegPath = c;
+          return c;
+        }
+      }
     } catch {}
   }
 
+  try {
+    const sysCmd = isWindows ? "where" : "which";
+    const res = spawnSync(sysCmd, ["ffmpeg"], { timeout: 2000, encoding: "utf8" });
+    if (res.status === 0 && res.stdout) {
+      const firstLine = res.stdout.trim().split(/\r?\n/)[0];
+      if (firstLine && fs.existsSync(firstLine)) {
+        _cachedFfmpegPath = firstLine;
+        return firstLine;
+      }
+    }
+  } catch {}
+
+  _cachedFfmpegPath = "";
   return null;
 }
 
@@ -98,163 +136,165 @@ export function getFfmpegPath(): string | null {
 export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResult> {
   const platform = detectPlatform(cleanUrl);
 
-  // 1. Try yt-dlp first
-  try {
-    const ytdlData = await new Promise<any>((resolve, reject) => {
-      execFile(
-        "python",
-        ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-j", "--no-playlist", cleanUrl],
-        { maxBuffer: 15 * 1024 * 1024, timeout: 20000 },
-        (error, stdout) => {
-          if (error) return reject(error);
-          try {
-            resolve(JSON.parse(stdout));
-          } catch (parseErr) {
-            reject(parseErr);
+  // 1. Try yt-dlp first if python is available
+  if (isPythonAvailable()) {
+    try {
+      const ytdlData = await new Promise<any>((resolve, reject) => {
+        execFile(
+          "python",
+          ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-j", "--no-playlist", cleanUrl],
+          { maxBuffer: 15 * 1024 * 1024, timeout: 20000 },
+          (error, stdout) => {
+            if (error) return reject(error);
+            try {
+              resolve(JSON.parse(stdout));
+            } catch (parseErr) {
+              reject(parseErr);
+            }
           }
+        );
+      });
+
+      if (ytdlData && (ytdlData.title || ytdlData.formats)) {
+        const title = ytdlData.title || `${platform.name} Video`;
+        const author = ytdlData.uploader || ytdlData.channel || platform.name;
+        const thumbnail = ytdlData.thumbnail || "";
+        const durationSeconds = ytdlData.duration;
+        const duration = durationSeconds
+          ? `${Math.floor(durationSeconds / 60)}:${String(Math.floor(durationSeconds % 60)).padStart(2, "0")}`
+          : undefined;
+
+        const formats: any[] = ytdlData.formats || [];
+        const heights = new Set<number>(
+          formats
+            .map((f) => (typeof f.height === "number" ? f.height : parseInt(f.height, 10)))
+            .filter((h) => !isNaN(h) && h > 0)
+        );
+
+        const has4K = [...heights].some((h) => h >= 2160);
+        const has2K = [...heights].some((h) => h >= 1440 && h < 2160);
+        const has1080p = [...heights].some((h) => h >= 1080);
+        const has720p = [...heights].some((h) => h >= 720);
+        const has480p = [...heights].some((h) => h >= 480);
+        const has360p = [...heights].some((h) => h >= 360);
+
+        const resolutions: VideoResolutionOption[] = [];
+
+        // 4K Ultra HD
+        if (has4K) {
+          resolutions.push({
+            id: "2160p",
+            label: "4K Ultra HD (2160p)",
+            resolution: "3840x2160",
+            quality: "2160p",
+            format: "mp4",
+            type: "video",
+            is4K: true,
+            badge: "4K ULTRA HD",
+            recommended: true,
+          });
         }
-      );
-    });
 
-    if (ytdlData && (ytdlData.title || ytdlData.formats)) {
-      const title = ytdlData.title || `${platform.name} Video`;
-      const author = ytdlData.uploader || ytdlData.channel || platform.name;
-      const thumbnail = ytdlData.thumbnail || "";
-      const durationSeconds = ytdlData.duration;
-      const duration = durationSeconds
-        ? `${Math.floor(durationSeconds / 60)}:${String(Math.floor(durationSeconds % 60)).padStart(2, "0")}`
-        : undefined;
+        // 2K Quad HD
+        if (has2K || has4K) {
+          resolutions.push({
+            id: "1440p",
+            label: "2K Quad HD (1440p)",
+            resolution: "2560x1440",
+            quality: "1440p",
+            format: "mp4",
+            type: "video",
+            badge: "2K QHD",
+          });
+        }
 
-      const formats: any[] = ytdlData.formats || [];
-      const heights = new Set<number>(
-        formats
-          .map((f) => (typeof f.height === "number" ? f.height : parseInt(f.height, 10)))
-          .filter((h) => !isNaN(h) && h > 0)
-      );
+        // 1080p Full HD
+        if (has1080p || resolutions.length === 0) {
+          resolutions.push({
+            id: "1080p",
+            label: "1080p Full HD",
+            resolution: "1920x1080",
+            quality: "1080p",
+            format: "mp4",
+            type: "video",
+            badge: "1080p FHD",
+            recommended: !has4K,
+          });
+        }
 
-      const has4K = [...heights].some((h) => h >= 2160);
-      const has2K = [...heights].some((h) => h >= 1440 && h < 2160);
-      const has1080p = [...heights].some((h) => h >= 1080);
-      const has720p = [...heights].some((h) => h >= 720);
-      const has480p = [...heights].some((h) => h >= 480);
-      const has360p = [...heights].some((h) => h >= 360);
+        // 720p HD
+        if (has720p || resolutions.length === 0) {
+          resolutions.push({
+            id: "720p",
+            label: "720p HD",
+            resolution: "1280x720",
+            quality: "720p",
+            format: "mp4",
+            type: "video",
+          });
+        }
 
-      const resolutions: VideoResolutionOption[] = [];
+        // 480p Standard
+        if (has480p) {
+          resolutions.push({
+            id: "480p",
+            label: "480p Standard",
+            resolution: "854x480",
+            quality: "480p",
+            format: "mp4",
+            type: "video",
+          });
+        }
 
-      // 4K Ultra HD
-      if (has4K) {
+        // 360p Mobile
+        if (has360p || resolutions.length < 2) {
+          resolutions.push({
+            id: "360p",
+            label: "360p Mobile",
+            resolution: "640x360",
+            quality: "360p",
+            format: "mp4",
+            type: "video",
+          });
+        }
+
+        // Audio options
         resolutions.push({
-          id: "2160p",
-          label: "4K Ultra HD (2160p)",
-          resolution: "3840x2160",
-          quality: "2160p",
-          format: "mp4",
-          type: "video",
-          is4K: true,
-          badge: "4K ULTRA HD",
-          recommended: true,
+          id: "mp3-320",
+          label: "MP3 Audio (320 kbps)",
+          resolution: "High Fidelity Stereo",
+          quality: "320k",
+          format: "mp3",
+          type: "audio",
+          bitrate: "320 kbps",
         });
-      }
 
-      // 2K Quad HD
-      if (has2K || has4K) {
         resolutions.push({
-          id: "1440p",
-          label: "2K Quad HD (1440p)",
-          resolution: "2560x1440",
-          quality: "1440p",
-          format: "mp4",
-          type: "video",
-          badge: "2K QHD",
+          id: "mp3-128",
+          label: "MP3 Audio (128 kbps)",
+          resolution: "Standard Stereo",
+          quality: "128k",
+          format: "mp3",
+          type: "audio",
+          bitrate: "128 kbps",
         });
+
+        return {
+          success: true,
+          url: cleanUrl,
+          platform: platform.key,
+          platformName: platform.name,
+          title,
+          author,
+          thumbnail,
+          duration,
+          resolutions,
+          defaultFileName: sanitizeFileName(title),
+        };
       }
-
-      // 1080p Full HD
-      if (has1080p || resolutions.length === 0) {
-        resolutions.push({
-          id: "1080p",
-          label: "1080p Full HD",
-          resolution: "1920x1080",
-          quality: "1080p",
-          format: "mp4",
-          type: "video",
-          badge: "1080p FHD",
-          recommended: !has4K,
-        });
-      }
-
-      // 720p HD
-      if (has720p || resolutions.length === 0) {
-        resolutions.push({
-          id: "720p",
-          label: "720p HD",
-          resolution: "1280x720",
-          quality: "720p",
-          format: "mp4",
-          type: "video",
-        });
-      }
-
-      // 480p Standard
-      if (has480p) {
-        resolutions.push({
-          id: "480p",
-          label: "480p Standard",
-          resolution: "854x480",
-          quality: "480p",
-          format: "mp4",
-          type: "video",
-        });
-      }
-
-      // 360p Mobile
-      if (has360p || resolutions.length < 2) {
-        resolutions.push({
-          id: "360p",
-          label: "360p Mobile",
-          resolution: "640x360",
-          quality: "360p",
-          format: "mp4",
-          type: "video",
-        });
-      }
-
-      // High-Fidelity Audio options (True MP3 with ID3 and libmp3lame)
-      resolutions.push({
-        id: "mp3-320",
-        label: "MP3 Audio (320 kbps)",
-        resolution: "High Fidelity Stereo",
-        quality: "320k",
-        format: "mp3",
-        type: "audio",
-        bitrate: "320 kbps",
-      });
-
-      resolutions.push({
-        id: "mp3-128",
-        label: "MP3 Audio (128 kbps)",
-        resolution: "Standard Stereo",
-        quality: "128k",
-        format: "mp3",
-        type: "audio",
-        bitrate: "128 kbps",
-      });
-
-      return {
-        success: true,
-        url: cleanUrl,
-        platform: platform.key,
-        platformName: platform.name,
-        title,
-        author,
-        thumbnail,
-        duration,
-        resolutions,
-        defaultFileName: sanitizeFileName(title),
-      };
+    } catch (ytdlError) {
+      console.warn("yt-dlp info inspect error, falling back to alldl:", ytdlError);
     }
-  } catch (ytdlError) {
-    console.warn("yt-dlp info inspect error, falling back to alldl:", ytdlError);
   }
 
   // 2. Fallback to rahad-all-downloader-v2
@@ -365,7 +405,7 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
 /**
  * Spawns a high-speed stream for the given URL and quality.
  * Converts to authentic, fully playable MP3 audio via ffmpeg libmp3lame,
- * and merges DASH video + audio into standard MP4 for video resolutions.
+ * and formats video as true fragmented MP4 for 100% player compatibility.
  */
 export async function createDownloadStream(
   videoUrl: string,
@@ -378,42 +418,35 @@ export async function createDownloadStream(
   const fileExt = isAudio ? "mp3" : "mp4";
   const contentType = isAudio ? "audio/mpeg" : "video/mp4";
   const ffmpegBinary = getFfmpegPath();
+  const pythonOk = isPythonAvailable();
 
   // 1. Audio Transcoding to true MP3 via ffmpeg
-  if (isAudio && ffmpegBinary) {
+  if (isAudio && ffmpegBinary && pythonOk) {
     try {
       const bitrate = quality.includes("128") ? "128k" : "320k";
 
-      // Spawn yt-dlp to stream source audio
       const ytdlProc = spawn(
         "python",
         ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-f", "bestaudio/best", "-o", "-", videoUrl],
         { stdio: ["ignore", "pipe", "pipe"] }
       );
 
-      // Spawn ffmpeg to transcode on-the-fly to genuine standard MP3 (libmp3lame)
       const ffmpegProc = spawn(
         ffmpegBinary,
         ["-i", "pipe:0", "-vn", "-acodec", "libmp3lame", "-b:a", bitrate, "-f", "mp3", "pipe:1"],
         { stdio: ["pipe", "pipe", "pipe"] }
       );
 
-      // Pipe yt-dlp stdout into ffmpeg stdin
       ytdlProc.stdout.pipe(ffmpegProc.stdin);
 
-      if (signal) {
-        signal.addEventListener("abort", () => {
-          try {
-            ytdlProc.kill("SIGKILL");
-          } catch {}
-          try {
-            ffmpegProc.kill("SIGKILL");
-          } catch {}
-        });
-      }
+      const cleanup = () => {
+        try { ytdlProc.kill("SIGKILL"); } catch {}
+        try { ffmpegProc.kill("SIGKILL"); } catch {}
+      };
 
-      ytdlProc.on("error", (err) => console.warn("ytdl stream audio error:", err));
-      ffmpegProc.on("error", (err) => console.warn("ffmpeg transcode error:", err));
+      if (signal) signal.addEventListener("abort", cleanup);
+      ytdlProc.on("error", (err) => { console.warn("ytdl error:", err); cleanup(); });
+      ffmpegProc.on("error", (err) => { console.warn("ffmpeg error:", err); cleanup(); });
       ffmpegProc.stdin.on("error", () => {});
 
       const webStream = Readable.toWeb(ffmpegProc.stdout) as ReadableStream<Uint8Array>;
@@ -423,94 +456,99 @@ export async function createDownloadStream(
     }
   }
 
-  // 2. Video Streaming (with ffmpeg audio merge if available)
-  let formatSpec = "bestvideo+bestaudio/best";
-
-  if (quality === "2160p" || quality === "4k") {
-    formatSpec = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/401+251/best";
-  } else if (quality === "1440p" || quality === "2k") {
-    formatSpec = "bestvideo[height<=1440]+bestaudio/best[height<=1440]/400+251/best";
-  } else if (quality === "1080p") {
-    formatSpec = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/137+251/best";
-  } else if (quality === "720p") {
-    formatSpec = "bestvideo[height<=720]+bestaudio/best[height<=720]/136+251/best";
-  } else if (quality === "480p") {
-    formatSpec = "bestvideo[height<=480]+bestaudio/best[height<=480]/135+251/best";
-  } else if (quality === "360p") {
-    formatSpec = "bestvideo[height<=360]+bestaudio/best[height<=360]/18/best";
-  }
-
-  const ytdlArgs = ["-m", "yt_dlp"];
-  if (ffmpegBinary) {
-    ytdlArgs.push("--ffmpeg-location", ffmpegBinary);
-  }
-  ytdlArgs.push("--js-runtimes", "node", "--no-warnings", "-f", formatSpec, "-o", "-", videoUrl);
-
-  try {
-    const proc = spawn("python", ytdlArgs, { stdio: ["ignore", "pipe", "pipe"] });
-
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        try {
-          proc.kill("SIGKILL");
-        } catch {}
-      });
-    }
-
-    proc.stderr.on("data", (chunk) => {
-      const msg = chunk.toString();
-      if (msg.includes("ERROR:") || msg.includes("Traceback")) {
-        console.warn("yt-dlp stream log:", msg.trim());
+  // 2. Video Streaming: Pipe through ffmpeg to guarantee genuine fragmented MP4 container
+  if (!isAudio && ffmpegBinary && pythonOk) {
+    try {
+      let formatSpec = "bestvideo+bestaudio/best";
+      if (quality === "2160p" || quality === "4k") {
+        formatSpec = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/401+251/best";
+      } else if (quality === "1440p" || quality === "2k") {
+        formatSpec = "bestvideo[height<=1440]+bestaudio/best[height<=1440]/400+251/best";
+      } else if (quality === "1080p") {
+        formatSpec = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/137+251/best";
+      } else if (quality === "720p") {
+        formatSpec = "bestvideo[height<=720]+bestaudio/best[height<=720]/136+251/best";
+      } else if (quality === "480p") {
+        formatSpec = "bestvideo[height<=480]+bestaudio/best[height<=480]/135+251/best";
+      } else if (quality === "360p") {
+        formatSpec = "bestvideo[height<=360]+bestaudio/best[height<=360]/18/best";
       }
-    });
 
-    const webStream = Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>;
-    return { stream: webStream, contentType, fileExt };
-  } catch (spawnErr) {
-    console.warn("Direct spawn error, falling back to alldl:", spawnErr);
+      const ytdlProc = spawn(
+        "python",
+        [
+          "-m", "yt_dlp",
+          "--ffmpeg-location", ffmpegBinary,
+          "--js-runtimes", "node",
+          "--no-warnings",
+          "-f", formatSpec,
+          "-o", "-",
+          videoUrl,
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] }
+      );
+
+      // Re-mux into compliant fragmented MP4 container with standard AAC audio
+      const ffmpegProc = spawn(
+        ffmpegBinary,
+        [
+          "-i", "pipe:0",
+          "-c:v", "copy",
+          "-c:a", "aac",
+          "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+          "-f", "mp4",
+          "pipe:1",
+        ],
+        { stdio: ["pipe", "pipe", "pipe"] }
+      );
+
+      ytdlProc.stdout.pipe(ffmpegProc.stdin);
+
+      const cleanup = () => {
+        try { ytdlProc.kill("SIGKILL"); } catch {}
+        try { ffmpegProc.kill("SIGKILL"); } catch {}
+      };
+
+      if (signal) signal.addEventListener("abort", cleanup);
+      ytdlProc.on("error", (err) => { console.warn("ytdl video error:", err); cleanup(); });
+      ffmpegProc.on("error", (err) => { console.warn("ffmpeg remux error:", err); cleanup(); });
+      ffmpegProc.stdin.on("error", () => {});
+
+      const webStream = Readable.toWeb(ffmpegProc.stdout) as ReadableStream<Uint8Array>;
+      return { stream: webStream, contentType, fileExt };
+    } catch (videoRemuxErr) {
+      console.warn("Video remux error, falling back:", videoRemuxErr);
+    }
   }
 
-  // 3. Fallback: alldl
+  // 3. Fallback: Pure JS alldl stream
   const { alldl } = await import("rahad-all-downloader-v2");
   try {
-    const streamOpts: any = {
-      quality: quality as any,
-      audioOnly: isAudio,
-    };
-    if (isAudio) {
-      streamOpts.audioFormat = "mp3";
-      if (quality.includes("320")) streamOpts.audioBitrate = 320;
-      else if (quality.includes("128")) streamOpts.audioBitrate = 128;
-    }
+    const info = await alldl(videoUrl, { quality: quality as any, audioOnly: isAudio });
+    const directUrl =
+      (isAudio && info?.data?.download && (info.data.download as any)?.audio) ||
+      info?.data?.videoUrl ||
+      ((info?.data?.download as any)?.video) ||
+      ((info?.data?.download as any)?.videos?.[0]?.url);
 
-    const nodeStream = await alldl.stream(videoUrl, streamOpts);
-    if (nodeStream && typeof (nodeStream as any).pipe === "function") {
-      const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>;
-      return { stream: webStream, contentType, fileExt };
+    if (directUrl && typeof directUrl === "string") {
+      const upstream = await fetch(directUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+
+      if (upstream.ok && upstream.body) {
+        return {
+          stream: upstream.body as ReadableStream<Uint8Array>,
+          contentType: isAudio ? "audio/mpeg" : "video/mp4",
+          fileExt: isAudio ? "mp3" : "mp4",
+        };
+      }
     }
   } catch (alldlStreamErr) {
-    console.warn("alldl.stream fallback failed:", alldlStreamErr);
-  }
-
-  // 4. Fallback: direct upstream fetch
-  const info = await alldl(videoUrl, { quality: quality as any, audioOnly: isAudio });
-  const directUrl =
-    (isAudio && info?.data?.download && (info.data.download as any)?.audio) ||
-    info?.data?.videoUrl ||
-    ((info?.data?.download as any)?.video) ||
-    ((info?.data?.download as any)?.videos?.[0]?.url);
-
-  if (directUrl && typeof directUrl === "string") {
-    const upstream = await fetch(directUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
-
-    if (upstream.ok && upstream.body) {
-      return { stream: upstream.body, contentType, fileExt };
-    }
+    console.warn("alldl fallback failed:", alldlStreamErr);
   }
 
   throw new Error("Could not initialize video or audio download stream.");
