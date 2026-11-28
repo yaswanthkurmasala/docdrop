@@ -1589,31 +1589,45 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
     }
   };
 
-  // Check for in-memory chained document from another tool
+  // Check for in-memory chained document from another tool or live phone transfer
   useEffect(() => {
-    const chained = getChainedDocument();
-    if (chained) {
-      setFile(chained);
+    const handleLoadTargetFile = (targetFile: File) => {
+      setFile(targetFile);
       setError(null);
       setResult(null);
       if (toolId === "organize-pdf") {
-        loadOrganizeThumbnails(chained);
+        loadOrganizeThumbnails(targetFile);
       } else if (toolId === "split-pdf" || toolId === "extract-pages") {
-        loadSplitThumbnails(chained);
+        loadSplitThumbnails(targetFile);
       } else if (toolId === "remove-pages") {
-        loadRemoveThumbnails(chained);
+        loadRemoveThumbnails(targetFile);
       } else if (toolId === "ocr-pdf") {
-        loadOcrThumbnailsAndPreflight(chained);
+        loadOcrThumbnailsAndPreflight(targetFile);
       } else if (toolId === "edit-pdf") {
-        loadAnnotateThumbnail(chained);
+        loadAnnotateThumbnail(targetFile);
       } else if (toolId === "add-watermark") {
-        loadWatermarkThumbnail(chained);
+        loadWatermarkThumbnail(targetFile);
       } else if (toolId === "add-page-numbers") {
-        loadNumberThumbnails(chained);
+        loadNumberThumbnails(targetFile);
       } else if (toolId === "redact-pdf") {
-        loadRedactThumbnail(chained, 1);
+        loadRedactThumbnail(targetFile, 1);
       }
+    };
+
+    const chained = getChainedDocument();
+    if (chained) {
+      handleLoadTargetFile(chained);
     }
+
+    const handleFileReceived = (e: any) => {
+      const f = e.detail?.file;
+      if (f) {
+        handleLoadTargetFile(f);
+      }
+    };
+
+    window.addEventListener("docdrop:file-received", handleFileReceived);
+    return () => window.removeEventListener("docdrop:file-received", handleFileReceived);
   }, [toolId]);
 
   const handleChainToTool = (targetToolId: string) => {

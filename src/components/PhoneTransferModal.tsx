@@ -24,6 +24,13 @@ import {
   Edit2,
   Send,
   Layers,
+  Scissors,
+  Lock,
+  Stamp,
+  FileCode2,
+  FileSpreadsheet,
+  ScanText,
+  Sparkles,
 } from "lucide-react";
 import { generateQrDataUrl } from "@/lib/qr-code";
 import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
@@ -34,6 +41,65 @@ interface PhoneTransferModalProps {
   currentFile?: File | null;
   onReceiveFile?: (file: File) => void;
 }
+
+export const POPULAR_P2P_TOOLS = [
+  {
+    id: "organize-pages",
+    name: "Visual Page Organizer",
+    desc: "Reorder, rotate, split, or delete pages",
+    icon: Layers,
+    color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  },
+  {
+    id: "compress-pdf",
+    name: "Compress PDF",
+    desc: "Reduce file size up to 90% without quality loss",
+    icon: Zap,
+    color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  },
+  {
+    id: "pdf-to-word",
+    name: "PDF to Word (.docx)",
+    desc: "Convert to fully editable Microsoft Word document",
+    icon: FileText,
+    color: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  },
+  {
+    id: "pdf-to-excel",
+    name: "PDF to Excel (.xlsx)",
+    desc: "Extract tables and tabular data directly to spreadsheets",
+    icon: FileSpreadsheet,
+    color: "text-green-500 bg-green-500/10 border-green-500/20",
+  },
+  {
+    id: "ocr-pdf",
+    name: "OCR & Text Layer",
+    desc: "Make scanned document searchable and copyable",
+    icon: ScanText,
+    color: "text-purple-500 bg-purple-500/10 border-purple-500/20",
+  },
+  {
+    id: "sign-pdf",
+    name: "Sign & Audit Stamp",
+    desc: "Add legally binding digital signatures and certs",
+    icon: Stamp,
+    color: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+  },
+  {
+    id: "protect-pdf",
+    name: "Protect & Encrypt",
+    desc: "Lock with 256-bit AES encryption & password",
+    icon: Lock,
+    color: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20",
+  },
+  {
+    id: "merge-pdf",
+    name: "Merge PDF",
+    desc: "Combine with other files into one clean document",
+    icon: Scissors,
+    color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  },
+];
 
 export function PhoneTransferModal({
   isOpen,
@@ -71,17 +137,30 @@ export function PhoneTransferModal({
     }
   }, [currentFile]);
 
-  // Initialize room, PIN, and detect LAN Wi-Fi IP for seamless local phone scanning
-  const initTransferSession = useCallback(async () => {
+  // Initialize room, PIN, and detect LAN Wi-Fi IP. Persist in sessionStorage so phone & laptop stay paired!
+  const initTransferSession = useCallback(async (forceNew = false) => {
     setIsGeneratingQr(true);
-    const room = "drop-" + Math.random().toString(36).substring(2, 8);
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+
+    let room = "";
+    let pin = "";
+
+    if (!forceNew && typeof window !== "undefined") {
+      room = sessionStorage.getItem("docdrop_p2p_room") || "";
+      pin = sessionStorage.getItem("docdrop_p2p_pin") || "";
+    }
+
+    if (!room || !pin) {
+      room = "drop-" + Math.random().toString(36).substring(2, 8);
+      pin = Math.floor(100000 + Math.random() * 900000).toString();
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("docdrop_p2p_room", room);
+        sessionStorage.setItem("docdrop_p2p_pin", pin);
+      }
+    }
+
     setRoomId(room);
     setPinCode(pin);
     processedFileIdsRef.current.clear();
-    setPhoneOnline(false);
-    setPhoneDeviceName("");
-    setReceivedFile(null);
     setSendToPhoneSuccess(false);
 
     let baseOrigin = typeof window !== "undefined" ? window.location.origin : "https://docdrop.com";
@@ -132,13 +211,15 @@ export function PhoneTransferModal({
     }
   }, [isOpen, initTransferSession]);
 
-  // Room status & file receiver polling loop (every 1 second while modal is open)
+  // Room status & file receiver polling loop (every 1.1 seconds while modal is open)
   useEffect(() => {
     if (!isOpen || !roomId) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/p2p/room?room=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(pinCode)}`);
+        const res = await fetch(
+          `/api/p2p/room?room=${encodeURIComponent(roomId)}&pin=${encodeURIComponent(pinCode)}`
+        );
         if (!res.ok) return;
 
         const data = await res.json();
@@ -172,17 +253,22 @@ export function PhoneTransferModal({
             if (onReceiveFile) onReceiveFile(newFile);
 
             // Cleanup ephemeral buffer on server
-            fetch(`/api/p2p/transfer?room=${encodeURIComponent(roomId)}&fileId=${encodeURIComponent(firstIncoming.id)}`, {
-              method: "DELETE",
-            }).catch(() => {});
+            fetch(
+              `/api/p2p/transfer?room=${encodeURIComponent(roomId)}&fileId=${encodeURIComponent(firstIncoming.id)}`,
+              {
+                method: "DELETE",
+              }
+            ).catch(() => {});
 
-            // Global event dispatch so any mounted tools update
+            // Global event dispatch so any mounted tools auto-load it
             if (typeof window !== "undefined") {
-              window.dispatchEvent(new CustomEvent("docdrop:file-received", { detail: { file: newFile } }));
+              window.dispatchEvent(
+                new CustomEvent("docdrop:file-received", { detail: { file: newFile } })
+              );
             }
 
             try {
-              confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+              confetti({ particleCount: 80, spread: 80, origin: { y: 0.6 } });
             } catch {}
           }
         }
@@ -278,10 +364,14 @@ export function PhoneTransferModal({
     }
   };
 
-  // Launch tool on laptop with the received file
+  // Launch tool on laptop with the received file pre-loaded
   const handleLaunchTool = (toolSlug: string) => {
-    if (receivedFile) {
-      setChainedDocument(receivedFile);
+    const f = receivedFile || fileToSend;
+    if (f) {
+      setChainedDocument(f);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("docdrop:file-received", { detail: { file: f } }));
+      }
     }
     onClose();
     router.push(`/tools/${toolSlug}`);
@@ -290,14 +380,14 @@ export function PhoneTransferModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/65 backdrop-blur-sm"
           />
 
           {/* Modal Card */}
@@ -306,7 +396,7 @@ export function PhoneTransferModal({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.96, opacity: 0, y: 16 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full max-w-lg rounded-3xl bg-[var(--surface)]/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-zinc-800 shadow-2xl p-6 space-y-5"
+            className="relative z-10 w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[var(--surface)]/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/90 dark:border-zinc-800 shadow-2xl p-6 space-y-5"
           >
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -325,18 +415,28 @@ export function PhoneTransferModal({
                     )}
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Direct local Wi-Fi transfer between phone and laptop • Zero cloud storage
+                    Two-way Wi-Fi transfer: send files between phone and laptop tools instantly.
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => initTransferSession(true)}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer text-xs"
+                  title="Generate new QR code and room"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Mode Switcher Tabs */}
@@ -344,123 +444,141 @@ export function PhoneTransferModal({
               <button
                 type="button"
                 onClick={() => setActiveTab("receive")}
-                className={`flex-1 py-2 rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeTab === "receive"
                     ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
                     : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
                 }`}
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>Receive from Phone</span>
+                <span>1. Receive from Phone</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("send")}
-                className={`flex-1 py-2 rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                className={`flex-1 py-2.5 rounded-xl text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeTab === "send"
                     ? "bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-xs"
                     : "text-zinc-500 hover:text-zinc-950 dark:hover:text-white"
                 }`}
               >
                 <Laptop className="w-3.5 h-3.5" />
-                <span>Send to Phone</span>
+                <span>2. Send Back to Phone</span>
               </button>
             </div>
 
             {/* TAB 1: RECEIVE FROM PHONE */}
             {activeTab === "receive" && (
               <div className="space-y-4">
-                {/* Instructions banner */}
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
-                  <p className="font-bold flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Scan with any phone camera to upload</span>
-                  </p>
-                  <p className="text-[11px] opacity-90 mt-0.5">
-                    Open your phone camera, scan the QR code, and pick any document or photo to transfer straight into this laptop.
-                  </p>
-                </div>
-
-                {/* QR Code Container */}
-                <div className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
-                  <div className="w-56 h-56 p-2.5 rounded-2xl bg-white border border-zinc-200 shadow-md flex items-center justify-center relative">
-                    {isGeneratingQr ? (
-                      <div className="flex flex-col items-center gap-2 text-zinc-400">
-                        <RefreshCw className="w-6 h-6 animate-spin text-amber-500" />
-                        <span className="text-xs font-mono">Generating QR...</span>
-                      </div>
-                    ) : qrDataUrl ? (
-                      <img
-                        src={qrDataUrl}
-                        alt="Scan QR Code with Phone"
-                        className="w-full h-full object-contain [image-rendering:pixelated]"
-                      />
-                    ) : (
-                      <div className="text-xs text-rose-500 font-mono">Failed to render QR</div>
-                    )}
-                  </div>
-
-                  <div className="text-center space-y-1">
-                    <div className="flex items-center justify-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full ${
-                          phoneOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-400 animate-ping"
-                        }`}
-                      />
-                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                        {phoneOnline ? `${phoneDeviceName || "Phone"} connected!` : "Waiting for phone scan..."}
-                      </p>
-                    </div>
-                    <p className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                      Room: <span className="text-zinc-800 dark:text-zinc-200 font-bold">{roomId}</span> • PIN:{" "}
-                      <span className="text-amber-500 font-bold">{pinCode}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Received File Action Card */}
-                {receivedFile && (
+                {/* Received File Alert with Direct Tool Launcher */}
+                {receivedFile ? (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
+                    initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3"
+                    className="p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 space-y-4"
                   >
                     <div className="flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                         <div className="min-w-0">
-                          <p className="font-bold truncate text-zinc-950 dark:text-white">{receivedFile.name}</p>
+                          <p className="font-bold truncate text-zinc-950 dark:text-white text-sm">
+                            {receivedFile.name}
+                          </p>
                           <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">
-                            {(receivedFile.size / (1024 * 1024)).toFixed(2)} MB • Loaded in Laptop RAM
+                            {(receivedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready in RAM
                           </p>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 font-bold text-emerald-600 dark:text-emerald-300">
-                        READY
+                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/20 font-bold text-emerald-700 dark:text-emerald-300">
+                        SUCCESSFULLY RECEIVED
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleLaunchTool("organize-pages")}
-                        className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <Layers className="w-3.5 h-3.5" />
-                        <span>Organize Pages</span>
-                      </button>
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Choose a tool to perform on this file on your laptop:</span>
+                      </p>
 
-                      <button
-                        type="button"
-                        onClick={() => handleLaunchTool("pdf-to-word")}
-                        className="py-2 px-3 rounded-xl bg-zinc-900 dark:bg-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-zinc-700/60"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Convert to Word</span>
-                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        {POPULAR_P2P_TOOLS.map((tool) => {
+                          const Icon = tool.icon;
+                          return (
+                            <button
+                              key={tool.id}
+                              type="button"
+                              onClick={() => handleLaunchTool(tool.id)}
+                              className="p-2.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 hover:border-amber-500/50 hover:bg-amber-50/30 dark:hover:bg-amber-950/20 text-left transition-all cursor-pointer flex items-center gap-2.5 group"
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${tool.color}`}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-amber-500">
+                                  {tool.name}
+                                </p>
+                                <p className="text-[10px] text-zinc-400 truncate">{tool.desc}</p>
+                              </div>
+                              <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-amber-500 shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </motion.div>
+                ) : (
+                  <>
+                    {/* Instructions banner */}
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Scan with any smartphone camera</span>
+                      </p>
+                      <p className="text-[11px] opacity-90 mt-0.5">
+                        Open your phone camera, scan the QR code below, and select any document or photo to transfer straight into this laptop.
+                      </p>
+                    </div>
+
+                    {/* QR Code Container */}
+                    <div className="flex flex-col items-center justify-center p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
+                      <div className="w-52 h-52 p-2.5 rounded-2xl bg-white border border-zinc-200 shadow-md flex items-center justify-center relative">
+                        {isGeneratingQr ? (
+                          <div className="flex flex-col items-center gap-2 text-zinc-400">
+                            <RefreshCw className="w-6 h-6 animate-spin text-amber-500" />
+                            <span className="text-xs font-mono">Generating QR...</span>
+                          </div>
+                        ) : qrDataUrl ? (
+                          <img
+                            src={qrDataUrl}
+                            alt="Scan QR Code with Phone"
+                            className="w-full h-full object-contain [image-rendering:pixelated]"
+                          />
+                        ) : (
+                          <div className="text-xs text-rose-500 font-mono">Failed to render QR</div>
+                        )}
+                      </div>
+
+                      <div className="text-center space-y-1">
+                        <div className="flex items-center justify-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              phoneOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-400 animate-ping"
+                            }`}
+                          />
+                          <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            {phoneOnline ? `${phoneDeviceName || "Phone"} connected!` : "Waiting for phone scan..."}
+                          </p>
+                        </div>
+                        <p className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                          Room: <span className="text-zinc-800 dark:text-zinc-200 font-bold">{roomId}</span> • PIN:{" "}
+                          <span className="text-amber-500 font-bold">{pinCode}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Local Network Info & Customization */}
@@ -534,7 +652,7 @@ export function PhoneTransferModal({
               </div>
             )}
 
-            {/* TAB 2: SEND TO PHONE */}
+            {/* TAB 2: SEND BACK TO PHONE */}
             {activeTab === "send" && (
               <div className="space-y-4">
                 <input
@@ -545,6 +663,16 @@ export function PhoneTransferModal({
                   className="hidden"
                 />
 
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <Laptop className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Send Processed File to Phone</span>
+                  </p>
+                  <p className="text-[11px] opacity-90 mt-0.5">
+                    Your phone is paired in Room <strong>{roomId}</strong>. When you send, the file will pop up on your phone screen immediately.
+                  </p>
+                </div>
+
                 {fileToSend ? (
                   <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 space-y-3">
                     <div className="flex items-center justify-between">
@@ -553,7 +681,7 @@ export function PhoneTransferModal({
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-zinc-950 dark:text-white truncate">{fileToSend.name}</p>
                           <p className="text-[11px] font-mono text-zinc-400">
-                            {(fileToSend.size / (1024 * 1024)).toFixed(2)} MB • Ready on Laptop
+                            {(fileToSend.size / (1024 * 1024)).toFixed(2)} MB • Ready to Beam
                           </p>
                         </div>
                       </div>
@@ -580,7 +708,7 @@ export function PhoneTransferModal({
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5" />
-                          <span>Send to Phone Now</span>
+                          <span>Beam to Phone Now</span>
                         </>
                       )}
                     </button>
@@ -610,15 +738,15 @@ export function PhoneTransferModal({
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                       <span>
-                        <strong>Sent to phone!</strong> The phone will download it automatically.
+                        <strong>Sent to phone!</strong> The file is now ready on your phone screen.
                       </span>
                     </div>
                   </motion.div>
                 )}
 
-                {/* Show QR code so phone can connect if not already connected */}
-                <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-center gap-4">
-                  <div className="w-20 h-20 p-1.5 rounded-xl bg-white border border-zinc-200 shrink-0">
+                {/* Show QR code if phone needs to re-connect */}
+                <div className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800 flex items-center gap-4">
+                  <div className="w-16 h-16 p-1.5 rounded-xl bg-white border border-zinc-200 shrink-0">
                     {qrDataUrl && (
                       <img
                         src={qrDataUrl}
@@ -630,10 +758,10 @@ export function PhoneTransferModal({
                   <div className="space-y-1 text-xs">
                     <p className="font-bold text-zinc-900 dark:text-white flex items-center gap-1.5">
                       <Smartphone className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Scan with phone to receive</span>
+                      <span>Keep phone on DocDrop screen</span>
                     </p>
                     <p className="text-[11px] text-zinc-500">
-                      Keep your phone on this screen to receive the file instantly.
+                      If your phone disconnected, point its camera at this QR code to re-open the room.
                     </p>
                   </div>
                 </div>

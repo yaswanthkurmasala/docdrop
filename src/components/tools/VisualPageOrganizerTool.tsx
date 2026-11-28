@@ -32,7 +32,7 @@ import {
 import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
 import { organizePdfPages, type PageOrganizeItem } from "@/lib/pdf-tools/organize/organize-pages";
-import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
+import { setChainedDocument, getChainedDocument } from "@/lib/pdf-tools/chained-document";
 
 export interface VisualPageItem {
   id: string; // unique item id
@@ -142,12 +142,28 @@ export function VisualPageOrganizerTool({
     }
   }, []);
 
-  // When initial file changes or drops
+  // When initial file changes or drops, or when chained from phone transfer
   useEffect(() => {
     if (initialFile) {
       setFile(initialFile);
       loadThumbnails(initialFile);
+    } else {
+      const chained = getChainedDocument();
+      if (chained) {
+        setFile(chained);
+        loadThumbnails(chained);
+      }
     }
+
+    const handleFileReceived = (e: any) => {
+      const f = e.detail?.file;
+      if (f && f.name.toLowerCase().endsWith(".pdf")) {
+        setFile(f);
+        loadThumbnails(f);
+      }
+    };
+    window.addEventListener("docdrop:file-received", handleFileReceived);
+    return () => window.removeEventListener("docdrop:file-received", handleFileReceived);
   }, [initialFile, loadThumbnails]);
 
   const handleFileSelect = (selectedFile: File) => {

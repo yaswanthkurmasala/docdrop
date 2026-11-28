@@ -135,6 +135,11 @@ function P2PMobileClient() {
       setUploadSuccess(true);
       setSelectedFile(null);
 
+      // Auto-switch to receive tab so phone is ready when user completes tools on laptop
+      setTimeout(() => {
+        setActiveTab("receive-from-laptop");
+      }, 1500);
+
       try {
         confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
       } catch {}
@@ -383,12 +388,16 @@ function P2PMobileClient() {
             </div>
 
             {availableLaptopFiles.length === 0 ? (
-              <div className="py-8 flex flex-col items-center justify-center gap-3 text-zinc-500 border border-dashed border-zinc-800 rounded-2xl">
-                <Laptop className="w-8 h-8 text-zinc-600 animate-pulse" />
-                <p className="text-xs">Waiting for laptop to send a file...</p>
-                <span className="text-[11px] text-zinc-600">
-                  Run a tool on your laptop and click &quot;Send to Phone&quot;
-                </span>
+              <div className="py-8 px-4 flex flex-col items-center justify-center gap-3 text-zinc-400 border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/40">
+                <Laptop className="w-8 h-8 text-amber-500 animate-pulse" />
+                <p className="text-xs font-bold text-white">Your document is now open on your laptop!</p>
+                <p className="text-[11px] text-zinc-400 max-w-xs leading-relaxed">
+                  Perform any tool on your laptop (Organize Pages, Merge, Convert to Word, Compress, Sign, etc.).
+                </p>
+                <div className="pt-1 flex items-center gap-1.5 text-[11px] text-amber-400 font-mono">
+                  <span>When done, click &quot;Send to Phone&quot; on laptop</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </div>
               </div>
             ) : (
               <div className="space-y-3 text-left">
