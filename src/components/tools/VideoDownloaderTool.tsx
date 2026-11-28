@@ -22,6 +22,12 @@ import {
   Layers,
   Clock,
   HardDriveDownload,
+  ListPlus,
+  Trash2,
+  CheckSquare,
+  Square,
+  Play,
+  Pause,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
@@ -43,7 +49,20 @@ const SUPPORTED_PLATFORMS = [
   { name: "Pinterest", color: "hover:border-rose-500/50 hover:bg-rose-500/10 text-rose-500" },
 ];
 
+export interface BatchQueueItem {
+  id: string;
+  url: string;
+  status: "idle" | "inspecting" | "ready" | "downloading" | "done" | "error";
+  videoData?: VideoInfoResponse;
+  selectedResolution?: VideoResolutionOption;
+  customFileName?: string;
+  downloadProgress?: string;
+  downloadPercentage?: number;
+  error?: string;
+}
+
 export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToolProps) {
+  const [downloaderMode, setDownloaderMode] = useState<"single" | "batch">("single");
   const [urlInput, setUrlInput] = useState("");
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
   const [videoData, setVideoData] = useState<VideoInfoResponse | null>(null);
@@ -59,6 +78,13 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
   const [error, setError] = useState<string | null>(null);
   const [hasPasted, setHasPasted] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Batch Mode States
+  const [batchUrlsInput, setBatchUrlsInput] = useState("");
+  const [batchQueue, setBatchQueue] = useState<BatchQueueItem[]>([]);
+  const [isBatchInspecting, setIsBatchInspecting] = useState(false);
+  const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+  const [batchActiveIndex, setBatchActiveIndex] = useState<number | null>(null);
 
   // Handle URL fetch
   const handleFetchVideo = async (targetUrl?: string) => {
@@ -240,6 +266,210 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setDownloadPercentage(0);
   };
 
+  // Batch Mode Handlers
+  const handleInspectBatchUrls = async () => {
+    const rawUrls = batchUrlsInput
+      .split(/[\n\r\s,]+/)
+      .map((u) => u.trim())
+      .filter((u) => u.startsWith("http"));
+
+    if (rawUrls.length === 0) {
+      setError("Please paste at least one valid video link starting with http:// or https://");
+      return;
+    }
+
+    setError(null);
+    setIsBatchInspecting(true);
+
+    const newItems: BatchQueueItem[] = rawUrls.map((url, idx) => ({
+      id: `batch-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      url,
+      status: "inspecting",
+    }));
+
+    setBatchQueue((prev) => [...prev, ...newItems]);
+    setBatchUrlsInput("");
+
+    await Promise.allSettled(
+      newItems.map(async (item) => {
+        try {
+          const res = await fetch("/api/video-downloader/info", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: item.url }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || "Unable to inspect video");
+          }
+
+          const fourKRes = data.resolutions?.find((r: VideoResolutionOption) => r.is4K || r.id === "2160p");
+          const tenEightyRes = data.resolutions?.find((r: VideoResolutionOption) => r.id === "1080p");
+          const defaultRes = fourKRes || tenEightyRes || data.resolutions?.[0];
+
+          setBatchQueue((prev) =>
+            prev.map((q) =>
+              q.id === item.id
+                ? {
+                    ...q,
+                    status: "ready",
+                    videoData: data,
+                    selectedResolution: defaultRes,
+                    customFileName: data.defaultFileName || "video",
+                  }
+                : q
+            )
+          );
+        } catch (err: any) {
+          setBatchQueue((prev) =>
+            prev.map((q) =>
+              q.id === item.id
+                ? {
+                    ...q,
+                    status: "error",
+                    error: err?.message || "Failed to inspect link",
+                  }
+                : q
+            )
+          );
+        }
+      })
+    );
+
+    setIsBatchInspecting(false);
+  };
+
+  const handleDownloadBatchItem = async (itemId: string): Promise<boolean> => {
+    const item = batchQueue.find((q) => q.id === itemId);
+    if (!item || !item.videoData || !item.selectedResolution) return false;
+
+    setBatchQueue((prev) =>
+      prev.map((q) =>
+        q.id === itemId
+          ? { ...q, status: "downloading", downloadPercentage: 0, downloadProgress: "Streaming..." }
+          : q
+      )
+    );
+
+    try {
+      const ext = item.selectedResolution.format;
+      const effectiveBase = computeEffectiveFileName(
+        item.videoData.defaultFileName,
+        item.customFileName || ""
+      ).replace(/\.[^/.]+$/, "");
+      const finalFileName = `${effectiveBase}.${ext}`;
+
+      const downloadEndpoint = `/api/video-downloader/download?url=${encodeURIComponent(
+        item.videoData.url
+      )}&quality=${encodeURIComponent(item.selectedResolution.quality)}&format=${encodeURIComponent(
+        item.selectedResolution.format
+      )}&fileName=${encodeURIComponent(finalFileName)}`;
+
+      const res = await fetch(downloadEndpoint);
+      if (!res.ok) {
+        throw new Error(`Download failed with status ${res.status}`);
+      }
+
+      const contentLength = res.headers.get("content-length");
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No readable stream available");
+
+      const chunks: Uint8Array[] = [];
+      let receivedBytes = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          receivedBytes += value.length;
+          if (totalBytes > 0) {
+            const pct = Math.min(99, Math.round((receivedBytes / totalBytes) * 100));
+            setBatchQueue((prev) =>
+              prev.map((q) => (q.id === itemId ? { ...q, downloadPercentage: pct } : q))
+            );
+          }
+        }
+      }
+
+      const mimeType = item.selectedResolution.format === "mp3" ? "audio/mpeg" : "video/mp4";
+      const mediaBlob = new Blob(chunks as any, { type: mimeType });
+      const blobUrl = URL.createObjectURL(mediaBlob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = finalFileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        } catch {}
+      }, 2000);
+
+      setBatchQueue((prev) =>
+        prev.map((q) =>
+          q.id === itemId
+            ? {
+                ...q,
+                status: "done",
+                downloadPercentage: 100,
+                downloadProgress: `Saved ${finalFileName}`,
+              }
+            : q
+        )
+      );
+      return true;
+    } catch (err: any) {
+      setBatchQueue((prev) =>
+        prev.map((q) =>
+          q.id === itemId
+            ? {
+                ...q,
+                status: "error",
+                error: err?.message || "Download error",
+              }
+            : q
+        )
+      );
+      return false;
+    }
+  };
+
+  const handleDownloadAllBatch = async () => {
+    setIsBatchDownloading(true);
+    const readyItems = batchQueue.filter((q) => q.status === "ready");
+
+    for (let i = 0; i < readyItems.length; i++) {
+      setBatchActiveIndex(i);
+      await handleDownloadBatchItem(readyItems[i].id);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+
+    setIsBatchDownloading(false);
+    setBatchActiveIndex(null);
+
+    try {
+      confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+    } catch {}
+  };
+
+  const handleRemoveBatchItem = (id: string) => {
+    setBatchQueue((prev) => prev.filter((q) => q.id !== id));
+  };
+
+  const handleClearBatchQueue = () => {
+    setBatchQueue([]);
+  };
+
+  const handleTryBatchSample = () => {
+    setBatchUrlsInput(
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ\nhttps://www.youtube.com/watch?v=jNQXAC9IVRw"
+    );
+  };
+
   const resetAll = () => {
     handleCancelDownload();
     setUrlInput("");
@@ -287,10 +517,47 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
             + 1000 More Sites
           </span>
         </div>
+
+        {/* Mode Switcher: Single Link vs Multi-URL Batch Queue */}
+        <div className="flex items-center justify-center pt-3">
+          <div className="inline-flex items-center p-1.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setDownloaderMode("single")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                downloaderMode === "single"
+                  ? "bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span>Single Link</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setDownloaderMode("batch")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                downloaderMode === "batch"
+                  ? "bg-white dark:bg-zinc-950 text-zinc-950 dark:text-white shadow-xs"
+                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white"
+              }`}
+            >
+              <ListPlus className="w-3.5 h-3.5 text-violet-500" />
+              <span>Multi-URL Batch Queue</span>
+              {batchQueue.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-violet-500 text-white font-mono text-[10px]">
+                  {batchQueue.length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Main Input Box Card */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-md space-y-4">
+      {downloaderMode === "single" ? (
+        <>
+          {/* Main Input Box Card */}
+          <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-md space-y-4">
         <div className="relative flex flex-col sm:flex-row items-center gap-2">
           <div className="relative flex-1 w-full flex items-center rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950/80 px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-violet-500/40 focus-within:border-violet-500 transition-all shadow-inner">
             <LinkIcon className="w-4 h-4 text-zinc-400 mr-2.5 shrink-0" />
@@ -680,6 +947,279 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
           </motion.div>
         )}
       </AnimatePresence>
+        </>
+      ) : (
+        /* Multi-URL Batch Queue Mode */
+        <div className="space-y-6">
+          {/* Batch Textarea Ingestion Card */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 shadow-md space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                <ListPlus className="w-4 h-4 text-violet-500" />
+                <span>Paste Multiple Video Links (One URL Per Line)</span>
+              </label>
+              <span className="text-[11px] font-mono text-zinc-400">
+                {batchUrlsInput.split(/[\n\r]+/).filter((u) => u.trim().startsWith("http")).length} valid links
+              </span>
+            </div>
+
+            <textarea
+              rows={4}
+              value={batchUrlsInput}
+              onChange={(e) => setBatchUrlsInput(e.target.value)}
+              placeholder={"https://www.youtube.com/watch?v=...\nhttps://instagram.com/reel/...\nhttps://x.com/user/status/...\nhttps://tiktok.com/@user/video/..."}
+              className="w-full p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 transition-all"
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTryBatchSample}
+                  className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+                >
+                  Try Sample Batch
+                </button>
+                {batchUrlsInput && (
+                  <button
+                    type="button"
+                    onClick={() => setBatchUrlsInput("")}
+                    className="px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                  >
+                    Clear Text
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={isBatchInspecting || !batchUrlsInput.trim()}
+                onClick={handleInspectBatchUrls}
+                className="px-6 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-500 active:scale-98 text-white text-xs font-bold shadow-md shadow-violet-600/20 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+              >
+                {isBatchInspecting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Inspecting Links In Parallel...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Add to Download Queue</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Batch Queue Table & Action Bar */}
+          {batchQueue.length > 0 && (
+            <div className="space-y-4">
+              {/* Queue Controls Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950/80 border border-zinc-200/90 dark:border-zinc-800">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-zinc-950 dark:text-white uppercase tracking-wider">
+                    Queue Items:
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs font-mono">
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-bold">
+                      {batchQueue.length} Total
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                      {batchQueue.filter((q) => q.status === "done").length} Done
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 font-bold">
+                      {batchQueue.filter((q) => q.status === "ready").length} Ready
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isBatchDownloading || batchQueue.length === 0}
+                    onClick={handleClearBatchQueue}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    Clear Queue
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={
+                      isBatchDownloading ||
+                      batchQueue.filter((q) => q.status === "ready").length === 0
+                    }
+                    onClick={handleDownloadAllBatch}
+                    className="px-5 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-98 text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2"
+                  >
+                    {isBatchDownloading ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Downloading Item #{((batchActiveIndex || 0) + 1)}...</span>
+                      </>
+                    ) : (
+                      <>
+                        <HardDriveDownload className="w-3.5 h-3.5" />
+                        <span>
+                          Download All Ready ({batchQueue.filter((q) => q.status === "ready").length})
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Individual Queued Media Items */}
+              <div className="space-y-3">
+                {batchQueue.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-zinc-900 ${
+                      item.status === "downloading"
+                        ? "border-violet-500 ring-2 ring-violet-500/20"
+                        : item.status === "done"
+                        ? "border-emerald-500/40 bg-emerald-50/10"
+                        : item.status === "error"
+                        ? "border-rose-500/40 bg-rose-50/10"
+                        : "border-zinc-200/90 dark:border-zinc-800"
+                    }`}
+                  >
+                    {/* Item Info Left */}
+                    <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                      <span className="font-mono text-xs font-bold text-zinc-400 w-5 shrink-0">
+                        #{idx + 1}
+                      </span>
+
+                      {/* Thumbnail Preview */}
+                      <div className="w-16 h-12 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shrink-0 relative flex items-center justify-center">
+                        {item.videoData?.thumbnail ? (
+                          <img
+                            src={item.videoData.thumbnail}
+                            alt="Media Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : item.status === "inspecting" ? (
+                          <RefreshCw className="w-4 h-4 text-violet-500 animate-spin" />
+                        ) : (
+                          <Film className="w-5 h-5 text-zinc-400" />
+                        )}
+                        {item.videoData?.duration && (
+                          <span className="absolute bottom-0.5 right-0.5 px-1 rounded bg-black/80 text-[9px] font-mono font-bold text-white">
+                            {item.videoData.duration}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Text & URL */}
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-zinc-950 dark:text-white truncate">
+                          {item.videoData?.title || item.url}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {item.videoData?.platform && (
+                            <span className="text-[10px] font-bold px-1.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                              {item.videoData.platform}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-mono text-zinc-400 truncate max-w-[200px]">
+                            {item.url}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Format Selector & Progress Right */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {/* Resolution Selector Dropdown */}
+                      {item.videoData?.resolutions && item.videoData.resolutions.length > 0 && (
+                        <select
+                          disabled={item.status === "downloading" || item.status === "done"}
+                          value={item.selectedResolution?.id || ""}
+                          onChange={(e) => {
+                            const found = item.videoData?.resolutions.find((r) => r.id === e.target.value);
+                            if (found) {
+                              setBatchQueue((prev) =>
+                                prev.map((q) => (q.id === item.id ? { ...q, selectedResolution: found } : q))
+                              );
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-bold text-zinc-800 dark:text-zinc-200 focus:outline-none cursor-pointer"
+                        >
+                          {item.videoData.resolutions.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.quality} ({r.format.toUpperCase()}) {r.is4K ? "★ 4K" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {/* Status indicator */}
+                      <div className="min-w-[90px] text-right">
+                        {item.status === "inspecting" && (
+                          <span className="text-[11px] font-mono text-amber-500 flex items-center justify-end gap-1">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Inspecting
+                          </span>
+                        )}
+                        {item.status === "ready" && (
+                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
+                            Ready
+                          </span>
+                        )}
+                        {item.status === "downloading" && (
+                          <div className="text-right">
+                            <span className="text-[11px] font-mono font-bold text-violet-600">
+                              {item.downloadPercentage || 0}%
+                            </span>
+                            <div className="w-16 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden mt-0.5">
+                              <div
+                                className="h-full bg-violet-600 transition-all duration-150"
+                                style={{ width: `${item.downloadPercentage || 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {item.status === "done" && (
+                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Done
+                          </span>
+                        )}
+                        {item.status === "error" && (
+                          <span className="text-[11px] font-medium text-rose-500" title={item.error}>
+                            Failed
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Individual Download Button */}
+                      <button
+                        type="button"
+                        disabled={item.status !== "ready"}
+                        onClick={() => handleDownloadBatchItem(item.id)}
+                        className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-violet-600 hover:text-white text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                        title="Download this file"
+                      >
+                        <HardDriveDownload className="w-4 h-4" />
+                      </button>
+
+                      {/* Remove item button */}
+                      <button
+                        type="button"
+                        disabled={item.status === "downloading"}
+                        onClick={() => handleRemoveBatchItem(item.id)}
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        title="Remove from queue"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

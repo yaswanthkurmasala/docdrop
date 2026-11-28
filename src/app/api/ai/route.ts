@@ -93,7 +93,46 @@ ${(text || "").slice(0, 60000)}
         {
           parts: [
             {
-              text: `You are an AI document assistant. Answer the user's question based strictly on the provided document text. If the answer cannot be found in the document, state that clearly.\n\nDocument Context:\n${(text || "").slice(0, 60000)}\n\nUser Question: ${question || prompt}`,
+              text: `You are an expert AI document analyst. Answer the user's question based strictly on the provided document context.
+
+Instructions:
+1. Always cite specific page numbers using the bracketed notation [Page X] whenever making a claim or answering from a specific page. The document context contains "--- Page X ---" page markers.
+2. If tables, financials, or figures are present, format them cleanly using GitHub-Flavored Markdown tables (| Col 1 | Col 2 |).
+3. Be concise, objective, and executive-ready.
+4. If the answer cannot be found or deduced from the document context, state clearly: "I cannot find this information in the document."
+
+Document Context:
+${(text || "").slice(0, 80000)}
+
+User Question: ${question || prompt}`,
+            },
+          ],
+        },
+      ];
+    } else if (task === "extract-tables") {
+      contents = [
+        {
+          parts: [
+            {
+              text: `You are an expert tabular data extraction engine. Analyze the following document and identify all data tables, financial figures, matrices, comparisons, and structured records.
+Extract every table and return ONLY a valid JSON object matching this schema:
+{
+  "tables": [
+    {
+      "title": "Table title or description",
+      "headers": ["Column 1", "Column 2"],
+      "rows": [
+        ["Val 1", "Val 2"],
+        ["Val 3", "Val 4"]
+      ]
+    }
+  ]
+}
+
+If no tables are found, return {"tables": []}. Return pure JSON only with no markdown fences.
+
+Document Content:
+${(text || "").slice(0, 80000)}`,
             },
           ],
         },

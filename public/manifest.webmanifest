@@ -1,0 +1,74 @@
+{
+  "name": "DocDrop — Offline Document & PDF Studio",
+  "short_name": "DocDrop",
+  "description": "100% Private In-Browser PDF & Document Tools. Merge, Split, Compress, Convert, Sign, and Download 4K Media with Zero Cloud Uploads.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "categories": ["productivity", "utilities", "business"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Merge PDF",
+      "short_name": "Merge",
+      "description": "Combine multiple PDFs into one document",
+      "url": "/#merge-pdf",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Organize Pages",
+      "short_name": "Organize",
+      "description": "Visual drag-and-drop PDF page organizer",
+      "url": "/#organize-pdf",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "PDF to Markdown",
+      "short_name": "To Markdown",
+      "description": "Convert documents into clean LLM-ready markdown",
+      "url": "/#pdf-to-markdown",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Compress PDF",
+      "short_name": "Compress",
+      "description": "Optimize PDF file size in browser memory",
+      "url": "/#compress-pdf",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Video Downloader",
+      "short_name": "Downloader",
+      "description": "Universal high-speed video and audio downloader",
+      "url": "/#video-downloader",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

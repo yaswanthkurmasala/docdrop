@@ -1,8 +1,9 @@
 import { PDFDocument, degrees } from "pdf-lib";
 
 export interface PageOrganizeItem {
-  pageIndex: number; // 0-based source page index
+  pageIndex: number; // 0-based source page index, or -1 for blank page
   rotation?: number; // 0, 90, 180, 270 relative rotation
+  isBlank?: boolean; // Flag to indicate a newly inserted blank page
 }
 
 export type OrganizeOrderParam =
@@ -72,8 +73,17 @@ export async function organizePdfPages(
   }
 
   const newDoc = await PDFDocument.create();
+  // Get default page size from the first source page if available, else standard A4 [595.28, 841.89]
+  const defaultWidth = total > 0 ? srcDoc.getPage(0).getWidth() : 595.28;
+  const defaultHeight = total > 0 ? srcDoc.getPage(0).getHeight() : 841.89;
+
   for (const item of targetItems) {
-    if (item.pageIndex >= 0 && item.pageIndex < total) {
+    if (item.isBlank || item.pageIndex === -1) {
+      const blankPage = newDoc.addPage([defaultWidth, defaultHeight]);
+      if (item.rotation) {
+        blankPage.setRotation(degrees(item.rotation % 360));
+      }
+    } else if (item.pageIndex >= 0 && item.pageIndex < total) {
       const [copiedPage] = await newDoc.copyPages(srcDoc, [item.pageIndex]);
       if (item.rotation) {
         const currentAngle = copiedPage.getRotation().angle;

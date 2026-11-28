@@ -3,10 +3,11 @@
  * Ensures offline document processing and instant execution in browser RAM.
  */
 
-const CACHE_NAME = "docdrop-cache-v1";
+const CACHE_NAME = "docdrop-cache-v2";
 
 const STATIC_PRECACHE = [
   "/",
+  "/manifest.webmanifest",
   "/favicon.ico",
   "/logo.png",
   "/icon-192.png",

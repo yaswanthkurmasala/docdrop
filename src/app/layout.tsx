@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { GLOBAL_SEO_KEYWORDS, SITE_NAME, SITE_URL } from "@/lib/seo-data";
 
 export const metadata: Metadata = {
@@ -84,6 +85,13 @@ export default function RootLayout({
           type="font/ttf"
           crossOrigin="anonymous"
         />
+        {/* PWA Manifest & App Metadata */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#09090b" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="DocDrop" />
         {/* Instant Theme Detection Script: executes before hydration to prevent white/dark flashes */}
         <script
           dangerouslySetInnerHTML={{
@@ -110,6 +118,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             {children}
+            <PwaInstallPrompt />
           </AuthProvider>
         </ThemeProvider>
         {/* PWA Offline Service Worker Registration */}

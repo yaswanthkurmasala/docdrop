@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { ConverterWorkspace } from "@/components/ConverterWorkspace";
 import { MergePdfTool } from "@/components/tools/MergePdfTool";
+import { VisualPageOrganizerTool } from "@/components/tools/VisualPageOrganizerTool";
 import { UniversalPdfTool } from "@/components/tools/UniversalPdfTool";
 import { VideoDownloaderTool } from "@/components/tools/VideoDownloaderTool";
 import { ToolsHub } from "@/components/ToolsHub";
@@ -21,6 +22,9 @@ import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY } from "@/lib/tools-registry";
 import { GlobalDropzone } from "@/components/GlobalDropzone";
 import { CommandPalette } from "@/components/CommandPalette";
+import { DocumentChatDrawer } from "@/components/DocumentChatDrawer";
+import { PhoneTransferModal } from "@/components/PhoneTransferModal";
+import { MessageSquare, Smartphone } from "lucide-react";
 
 interface DocDropStudioProps {
   initialToolId?: string;
@@ -40,6 +44,8 @@ export function DocDropStudio({
   const [selectedPlan, setSelectedPlan] = useState<{ name: string; price: string } | null>(null);
   const [activeToolId, setActiveToolId] = useState<string>(initialToolId);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
 
   const { user, setProStatus } = useAuth();
 
@@ -156,10 +162,12 @@ export function DocDropStudio({
   const isPresetDock = [
     "pdf-to-markdown",
     "merge-pdf",
+    "organize-pdf",
     "split-pdf",
     "rotate-pdf",
     "compress-pdf",
     "jpg-to-pdf",
+    "video-downloader",
   ].includes(activeToolId);
 
   const activeDef = TOOLS_REGISTRY.find((t) => t.id === activeToolId);
@@ -222,9 +230,12 @@ export function DocDropStudio({
         >
           <h2 className="sr-only">Document Workbench &amp; Active Instrument</h2>
 
-          {/* Refined Dock-Style Tool Switcher: Tightly shrink-wrapped, centered, zero dead space */}
+          {/* Refined Dock-Style Tool Switcher: Tightly shrink-wrapped, centered, with ambient blur light glow */}
           <div className="w-full flex items-center justify-center py-1 mb-8 overflow-x-auto no-scrollbar px-2 sm:px-4">
-            <div className="inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-2xl bg-[var(--surface)]/95 dark:bg-[var(--surface)]/90 backdrop-blur-md border border-zinc-200/90 dark:border-zinc-800 shadow-2xs shrink-0 mx-auto">
+            <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-zinc-200/90 dark:border-zinc-800 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] shrink-0 mx-auto">
+              {/* Subtle ambient light blur behind dock */}
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-indigo-500/15 rounded-2xl blur-md opacity-60 pointer-events-none -z-10" />
+
               {[
                 {
                   id: "pdf-to-markdown",
@@ -237,6 +248,12 @@ export function DocDropStudio({
                   label: "Merge PDF",
                   icon: Layers,
                   iconColor: "text-zinc-700 dark:text-zinc-300",
+                },
+                {
+                  id: "organize-pdf",
+                  label: "Organize Pages",
+                  icon: Layers,
+                  iconColor: "text-rose-600 dark:text-rose-400",
                 },
                 {
                   id: "split-pdf",
@@ -347,6 +364,21 @@ export function DocDropStudio({
               >
                 <MergePdfTool isPro={effectiveIsPro} onOpenPricing={handleOpenPricing} />
               </motion.div>
+            ) : activeToolId === "organize-pdf" ? (
+              <motion.div
+                key="organize-pdf-view"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: motionTokens.ease.standard }}
+                className="will-change-[transform,opacity]"
+              >
+                <VisualPageOrganizerTool
+                  isPro={effectiveIsPro}
+                  onOpenPricing={handleOpenPricing}
+                  onChainTool={(toolId) => handleSelectTool(toolId)}
+                />
+              </motion.div>
             ) : activeToolId === "video-downloader" ? (
               <motion.div
                 key="video-downloader-view"
@@ -422,6 +454,42 @@ export function DocDropStudio({
         initialTab={authModalTab}
         onOpenLicenseModal={handleOpenLicenseModal}
       />
+
+      {/* AI Chat with PDF & Table Extractor Drawer */}
+      <DocumentChatDrawer
+        isOpen={isChatDrawerOpen}
+        onClose={() => setIsChatDrawerOpen(false)}
+      />
+
+      {/* Peer-to-Peer Drop to Phone Modal */}
+      <PhoneTransferModal
+        isOpen={isPhoneModalOpen}
+        onClose={() => setIsPhoneModalOpen(false)}
+      />
+
+      {/* Floating Quick Action Instruments: Chat with PDF & Drop to Phone */}
+      <div className="fixed bottom-5 left-5 z-40 hidden sm:flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsChatDrawerOpen(true)}
+          className="px-3.5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer backdrop-blur-md"
+          title="Chat with your loaded document or extract tables to Excel"
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>Chat with PDF</span>
+          <span className="px-1.5 py-0.2 rounded bg-indigo-800 text-[10px] font-mono">AI</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsPhoneModalOpen(true)}
+          className="px-3.5 py-2.5 rounded-2xl bg-white/90 dark:bg-zinc-900/90 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold border border-zinc-200/90 dark:border-zinc-800 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer backdrop-blur-md"
+          title="Transfer documents directly between phone and laptop"
+        >
+          <Smartphone className="w-4 h-4 text-amber-500" />
+          <span>Drop to Phone</span>
+        </button>
+      </div>
     </div>
   );
 }
