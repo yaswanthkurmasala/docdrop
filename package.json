@@ -29,6 +29,7 @@
     "cashfree-pg": "^6.0.6",
     "clsx": "^2.1.1",
     "docx": "^9.16.0",
+    "ffmpeg-static": "^5.2.0",
     "firebase": "^13.4.0",
     "jszip": "^3.10.2",
     "lucide-react": "^1.77.0",

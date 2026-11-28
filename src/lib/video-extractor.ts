@@ -1,5 +1,7 @@
 import { spawn, execFile } from "child_process";
 import { Readable } from "stream";
+import path from "path";
+import fs from "fs";
 
 export interface VideoResolutionOption {
   id: string;
@@ -61,10 +63,33 @@ export function detectPlatform(url: string): { key: string; name: string } {
 }
 
 export function sanitizeFileName(name: string): string {
-  return name
-    .replace(/[/\\?%*:|"<>]/g, "")
-    .replace(/\s+/g, " ")
-    .trim() || "video";
+  return (
+    name
+      .replace(/[/\\?%*:|"<>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim() || "video"
+  );
+}
+
+/**
+ * Resolves the location of a usable ffmpeg executable.
+ */
+export function getFfmpegPath(): string | null {
+  const candidatePaths = [
+    path.resolve(process.cwd(), "bin/ffmpeg.exe"),
+    path.resolve(process.cwd(), "web-app/bin/ffmpeg.exe"),
+    path.resolve(process.cwd(), "node_modules/ffmpeg-static/ffmpeg.exe"),
+    path.resolve(process.cwd(), "web-app/node_modules/ffmpeg-static/ffmpeg.exe"),
+    "C:\\Users\\yaswa\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages\\static_ffmpeg\\bin\\win32\\ffmpeg.EXE",
+  ];
+
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {}
+  }
+
+  return null;
 }
 
 /**
@@ -76,7 +101,7 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
   // 1. Try yt-dlp first
   try {
     const ytdlData = await new Promise<any>((resolve, reject) => {
-      const child = execFile(
+      execFile(
         "python",
         ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-j", "--no-playlist", cleanUrl],
         { maxBuffer: 15 * 1024 * 1024, timeout: 20000 },
@@ -194,11 +219,11 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
         });
       }
 
-      // High-Fidelity Audio options
+      // High-Fidelity Audio options (True MP3 with ID3 and libmp3lame)
       resolutions.push({
         id: "mp3-320",
         label: "MP3 Audio (320 kbps)",
-        resolution: "High Fidelity",
+        resolution: "High Fidelity Stereo",
         quality: "320k",
         format: "mp3",
         type: "audio",
@@ -208,7 +233,7 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
       resolutions.push({
         id: "mp3-128",
         label: "MP3 Audio (128 kbps)",
-        resolution: "Standard",
+        resolution: "Standard Stereo",
         quality: "128k",
         format: "mp3",
         type: "audio",
@@ -306,7 +331,7 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
     {
       id: "mp3-320",
       label: "MP3 Audio (320 kbps)",
-      resolution: "High Fidelity",
+      resolution: "High Fidelity Stereo",
       quality: "320k",
       format: "mp3",
       type: "audio",
@@ -315,7 +340,7 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
     {
       id: "mp3-128",
       label: "MP3 Audio (128 kbps)",
-      resolution: "Standard",
+      resolution: "Standard Stereo",
       quality: "128k",
       format: "mp3",
       type: "audio",
@@ -339,7 +364,8 @@ export async function extractVideoInfo(cleanUrl: string): Promise<VideoInfoResul
 
 /**
  * Spawns a high-speed stream for the given URL and quality.
- * Streams bytes directly to stdout and converts to a WHATWG ReadableStream.
+ * Converts to authentic, fully playable MP3 audio via ffmpeg libmp3lame,
+ * and merges DASH video + audio into standard MP4 for video resolutions.
  */
 export async function createDownloadStream(
   videoUrl: string,
@@ -349,19 +375,58 @@ export async function createDownloadStream(
 ): Promise<{ stream: ReadableStream<Uint8Array>; contentType: string; fileExt: string }> {
   const isAudio =
     format === "mp3" || format === "m4a" || quality.includes("audio") || quality.includes("k");
-  const fileExt = isAudio ? (format === "m4a" ? "m4a" : "mp3") : "mp4";
-  const contentType = isAudio
-    ? fileExt === "m4a"
-      ? "audio/mp4"
-      : "audio/mpeg"
-    : "video/mp4";
+  const fileExt = isAudio ? "mp3" : "mp4";
+  const contentType = isAudio ? "audio/mpeg" : "video/mp4";
+  const ffmpegBinary = getFfmpegPath();
 
-  // Build the format selector for yt-dlp
-  let formatSpec = "best[ext=mp4]/best";
+  // 1. Audio Transcoding to true MP3 via ffmpeg
+  if (isAudio && ffmpegBinary) {
+    try {
+      const bitrate = quality.includes("128") ? "128k" : "320k";
 
-  if (isAudio) {
-    formatSpec = "bestaudio/140/251/best";
-  } else if (quality === "2160p" || quality === "4k") {
+      // Spawn yt-dlp to stream source audio
+      const ytdlProc = spawn(
+        "python",
+        ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-f", "bestaudio/best", "-o", "-", videoUrl],
+        { stdio: ["ignore", "pipe", "pipe"] }
+      );
+
+      // Spawn ffmpeg to transcode on-the-fly to genuine standard MP3 (libmp3lame)
+      const ffmpegProc = spawn(
+        ffmpegBinary,
+        ["-i", "pipe:0", "-vn", "-acodec", "libmp3lame", "-b:a", bitrate, "-f", "mp3", "pipe:1"],
+        { stdio: ["pipe", "pipe", "pipe"] }
+      );
+
+      // Pipe yt-dlp stdout into ffmpeg stdin
+      ytdlProc.stdout.pipe(ffmpegProc.stdin);
+
+      if (signal) {
+        signal.addEventListener("abort", () => {
+          try {
+            ytdlProc.kill("SIGKILL");
+          } catch {}
+          try {
+            ffmpegProc.kill("SIGKILL");
+          } catch {}
+        });
+      }
+
+      ytdlProc.on("error", (err) => console.warn("ytdl stream audio error:", err));
+      ffmpegProc.on("error", (err) => console.warn("ffmpeg transcode error:", err));
+      ffmpegProc.stdin.on("error", () => {});
+
+      const webStream = Readable.toWeb(ffmpegProc.stdout) as ReadableStream<Uint8Array>;
+      return { stream: webStream, contentType, fileExt };
+    } catch (audioTranscodeErr) {
+      console.warn("Audio transcode pipe error, falling back:", audioTranscodeErr);
+    }
+  }
+
+  // 2. Video Streaming (with ffmpeg audio merge if available)
+  let formatSpec = "bestvideo+bestaudio/best";
+
+  if (quality === "2160p" || quality === "4k") {
     formatSpec = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/401+251/best";
   } else if (quality === "1440p" || quality === "2k") {
     formatSpec = "bestvideo[height<=1440]+bestaudio/best[height<=1440]/400+251/best";
@@ -373,17 +438,16 @@ export async function createDownloadStream(
     formatSpec = "bestvideo[height<=480]+bestaudio/best[height<=480]/135+251/best";
   } else if (quality === "360p") {
     formatSpec = "bestvideo[height<=360]+bestaudio/best[height<=360]/18/best";
-  } else {
-    formatSpec = "bestvideo+bestaudio/best";
   }
 
-  // Attempt A: Spawn python yt-dlp directly
+  const ytdlArgs = ["-m", "yt_dlp"];
+  if (ffmpegBinary) {
+    ytdlArgs.push("--ffmpeg-location", ffmpegBinary);
+  }
+  ytdlArgs.push("--js-runtimes", "node", "--no-warnings", "-f", formatSpec, "-o", "-", videoUrl);
+
   try {
-    const proc = spawn(
-      "python",
-      ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-f", formatSpec, "-o", "-", videoUrl],
-      { stdio: ["ignore", "pipe", "pipe"] }
-    );
+    const proc = spawn("python", ytdlArgs, { stdio: ["ignore", "pipe", "pipe"] });
 
     if (signal) {
       signal.addEventListener("abort", () => {
@@ -395,7 +459,6 @@ export async function createDownloadStream(
 
     proc.stderr.on("data", (chunk) => {
       const msg = chunk.toString();
-      // Log errors only
       if (msg.includes("ERROR:") || msg.includes("Traceback")) {
         console.warn("yt-dlp stream log:", msg.trim());
       }
@@ -407,7 +470,7 @@ export async function createDownloadStream(
     console.warn("Direct spawn error, falling back to alldl:", spawnErr);
   }
 
-  // Attempt B: alldl fallback
+  // 3. Fallback: alldl
   const { alldl } = await import("rahad-all-downloader-v2");
   try {
     const streamOpts: any = {
@@ -415,7 +478,7 @@ export async function createDownloadStream(
       audioOnly: isAudio,
     };
     if (isAudio) {
-      streamOpts.audioFormat = fileExt as any;
+      streamOpts.audioFormat = "mp3";
       if (quality.includes("320")) streamOpts.audioBitrate = 320;
       else if (quality.includes("128")) streamOpts.audioBitrate = 128;
     }
@@ -429,7 +492,7 @@ export async function createDownloadStream(
     console.warn("alldl.stream fallback failed:", alldlStreamErr);
   }
 
-  // Attempt C: direct upstream fetch
+  // 4. Fallback: direct upstream fetch
   const info = await alldl(videoUrl, { quality: quality as any, audioOnly: isAudio });
   const directUrl =
     (isAudio && info?.data?.download && (info.data.download as any)?.audio) ||
@@ -450,5 +513,5 @@ export async function createDownloadStream(
     }
   }
 
-  throw new Error("Could not initialize video download stream.");
+  throw new Error("Could not initialize video or audio download stream.");
 }
