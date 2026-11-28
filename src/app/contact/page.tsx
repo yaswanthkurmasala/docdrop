@@ -25,7 +25,7 @@ export default function ContactUs() {
           Have a question about DocDrop, need help with payment, or want to report an issue? We are here to help.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm space-y-3">
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
               <Mail className="w-5 h-5" />
@@ -40,15 +40,37 @@ export default function ContactUs() {
           </div>
 
           <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm space-y-3">
+            <div className="w-9 h-9 rounded-xl bg-pink-500/10 text-pink-500 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+              </svg>
+            </div>
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Official Instagram</h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              Follow for feature updates, reels, and video tutorials.
+            </p>
+            <a
+              href="https://www.instagram.com/docdroptools"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-xs font-medium text-pink-600 dark:text-pink-400 hover:underline font-mono"
+            >
+              @docdroptools &rarr;
+            </a>
+          </div>
+
+          <div className="p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 shadow-sm space-y-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
               <Clock className="w-5 h-5" />
             </div>
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Response Time</h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              We respond to all customer tickets within 24 business hours.
+              We respond to customer tickets within 24 business hours.
             </p>
             <span className="inline-block text-xs font-mono text-zinc-600 dark:text-zinc-400">
-              Monday &ndash; Saturday (9:00 AM &ndash; 7:00 PM IST)
+              Mon &ndash; Sat (9 AM &ndash; 7 PM IST)
             </span>
           </div>
         </div>

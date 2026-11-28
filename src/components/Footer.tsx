@@ -5,6 +5,24 @@ import Link from "next/link";
 import { ShieldCheck, Cpu, ArrowUpRight, FileText, FileSpreadsheet, Sparkles } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 
+function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
 export function Footer({ onOpenPricing }: { onOpenPricing?: () => void }) {
   return (
     <footer className="relative mt-auto border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 py-14 sm:py-16 px-4 sm:px-6 lg:px-8 select-none">
@@ -33,6 +51,23 @@ export function Footer({ onOpenPricing }: { onOpenPricing?: () => void }) {
               <span className="font-medium text-zinc-700 dark:text-zinc-300">Zero cloud uploads</span>
               <span className="text-zinc-300 dark:text-zinc-700">•</span>
               <span>100% local in-browser RAM</span>
+            </div>
+
+            {/* Official Instagram Page */}
+            <div className="pt-1.5">
+              <a
+                href="https://www.instagram.com/docdroptools"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-amber-500/10 border border-pink-500/25 hover:border-pink-500/50 text-zinc-900 dark:text-zinc-100 hover:text-pink-600 dark:hover:text-pink-400 text-xs font-semibold transition-all group shadow-2xs"
+                title="Follow @docdroptools on Instagram"
+              >
+                <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-2xs group-hover:scale-110 transition-transform">
+                  <InstagramIcon className="w-3 h-3" />
+                </div>
+                <span>Follow on Instagram: <strong className="font-mono text-pink-600 dark:text-pink-400 font-bold">@docdroptools</strong></span>
+                <ArrowUpRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-pink-500 transition-colors" />
+              </a>
             </div>
           </div>
 
@@ -177,6 +212,18 @@ export function Footer({ onOpenPricing }: { onOpenPricing?: () => void }) {
                   <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </Link>
               </li>
+              <li>
+                <a
+                  href="https://www.instagram.com/docdroptools"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-pink-600 dark:hover:text-pink-400 transition-colors flex items-center gap-1.5 group font-medium"
+                >
+                  <InstagramIcon className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+                  <span>Instagram (@docdroptools)</span>
+                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -193,6 +240,16 @@ export function Footer({ onOpenPricing }: { onOpenPricing?: () => void }) {
             <Link href="/refund" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Refund Policy</Link>
             <span className="text-zinc-300 dark:text-zinc-700">•</span>
             <Link href="/contact" className="hover:text-zinc-950 dark:hover:text-white transition-colors underline-offset-4 hover:underline">Contact Us</Link>
+            <span className="text-zinc-300 dark:text-zinc-700">•</span>
+            <a
+              href="https://www.instagram.com/docdroptools"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-pink-600 dark:text-pink-400 hover:underline underline-offset-4 font-semibold"
+            >
+              <InstagramIcon className="w-3 h-3 text-pink-500" />
+              <span>@docdroptools</span>
+            </a>
           </div>
 
           <div className="flex items-center gap-3 text-xs">
