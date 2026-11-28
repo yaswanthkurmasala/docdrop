@@ -1,4 +1,5 @@
 import { PDFDocument, degrees } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export interface RotatePdfOptions {
   angleDegrees?: number; // 90, 180, 270
@@ -43,8 +44,7 @@ export async function rotatePdf(
   const onProgress = opts.onProgress;
 
   onProgress?.(15, "Loading PDF document in memory...");
-  const buffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   const pages = pdfDoc.getPages();
   const total = pages.length;
 

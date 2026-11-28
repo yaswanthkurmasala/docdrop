@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export type LiveFontFamily = "Helvetica" | "TimesRoman" | "Courier";
 
@@ -129,6 +130,34 @@ async function getStandardFont(
 }
 
 /**
+ * Normalizes text for standard PDF fonts (WinAnsi / Type 1 encoding).
+ * Intelligently maps typographic quotes, dashes, symbols, and accented characters
+ * instead of blanking them out, preventing missing characters.
+ */
+export function cleanPdfText(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/[\u2018\u2019]/g, "'") // Single smart quotes
+    .replace(/[\u201C\u201D]/g, '"') // Double smart quotes
+    .replace(/\u2014/g, "--") // Em-dash
+    .replace(/\u2013/g, "-") // En-dash
+    .replace(/\u2022/g, "*") // Bullet
+    .replace(/\u2026/g, "...") // Ellipsis
+    .replace(/\u00A0/g, " ") // Non-breaking space
+    .replace(/[\u20B9]/g, "Rs. ") // Rupee
+    .replace(/[\u20AC]/g, "EUR ") // Euro
+    .replace(/[\u00A3]/g, "GBP ") // Pound
+    .replace(/[\u00A5]/g, "JPY ") // Yen
+    .replace(/[\u00A9]/g, "(c)") // Copyright
+    .replace(/[\u00AE]/g, "(R)") // Registered
+    .replace(/[\u2122]/g, "(TM)") // Trademark
+    // Replace remaining non-WinAnsi / non-ASCII characters with safe ASCII transliterations
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, " ");
+}
+
+/**
  * Applies all live visual edits (in-place text replacement, added text, whiteouts, highlights, and stamps)
  * completely in client memory with zero server transfer.
  */
@@ -142,7 +171,7 @@ export async function applyLivePdfEdits(
   options?.onProgress?.(10, "Initializing Canva Live PDF Engine in memory...");
   const buffer = await file.arrayBuffer();
 
-  const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(buffer);
   const pages = pdfDoc.getPages();
   const totalPages = pages.length;
 
@@ -199,16 +228,27 @@ export async function applyLivePdfEdits(
           edit.isItalic
         );
 
-        // Sanitize string for standard 14 fonts
-        const cleanStr = edit.newStr.replace(/[^\x00-\x7F]/g, " ");
+        const cleanStr = cleanPdfText(edit.newStr);
 
-        page.drawText(cleanStr, {
-          x: edit.x,
-          y: edit.y,
-          size: edit.fontSize,
-          font,
-          color: hexToRgb(edit.color || "#000000"),
-        });
+        try {
+          page.drawText(cleanStr, {
+            x: edit.x,
+            y: edit.y,
+            size: edit.fontSize,
+            font,
+            color: hexToRgb(edit.color || "#000000"),
+          });
+        } catch {
+          // Fallback to pure ASCII if any character failed encoding
+          const safeAscii = cleanStr.replace(/[^\x20-\x7E]/g, "?");
+          page.drawText(safeAscii, {
+            x: edit.x,
+            y: edit.y,
+            size: edit.fontSize,
+            font,
+            color: hexToRgb(edit.color || "#000000"),
+          });
+        }
       }
       totalEditsCount++;
     }
@@ -236,16 +276,28 @@ export async function applyLivePdfEdits(
           t.isBold,
           t.isItalic
         );
-        const cleanStr = t.text.replace(/[^\x00-\x7F]/g, " ");
+        const cleanStr = cleanPdfText(t.text);
 
-        page.drawText(cleanStr, {
-          x: t.x,
-          y: t.y,
-          size: t.fontSize,
-          font,
-          color: hexToRgb(t.color || "#000000"),
-          opacity: t.opacity ?? 1,
-        });
+        try {
+          page.drawText(cleanStr, {
+            x: t.x,
+            y: t.y,
+            size: t.fontSize,
+            font,
+            color: hexToRgb(t.color || "#000000"),
+            opacity: t.opacity ?? 1,
+          });
+        } catch {
+          const safeAscii = cleanStr.replace(/[^\x20-\x7E]/g, "?");
+          page.drawText(safeAscii, {
+            x: t.x,
+            y: t.y,
+            size: t.fontSize,
+            font,
+            color: hexToRgb(t.color || "#000000"),
+            opacity: t.opacity ?? 1,
+          });
+        }
         totalEditsCount++;
       }
     }

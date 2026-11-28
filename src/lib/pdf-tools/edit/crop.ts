@@ -1,4 +1,5 @@
 import { PDFDocument } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export interface CropMargins {
   top?: number;
@@ -64,8 +65,7 @@ export async function cropPdf(
   const onProgress = opts.onProgress;
   onProgress?.(15, "Loading PDF document in client memory...");
 
-  const buffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   const pages = pdfDoc.getPages();
   const totalPages = pages.length;
 

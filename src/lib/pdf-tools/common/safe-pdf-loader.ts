@@ -57,16 +57,41 @@ export function isImageFile(
   ) {
     return true;
   }
+  // TIFF: 49 49 2A 00 (little endian) or 4D 4D 00 2A (big endian)
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return true;
+  }
+  // HEIC / HEIF / AVIF: [4-11] contains 'ftyp'
+  if (bytes.length >= 12) {
+    const ftyp = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+    if (ftyp === "ftyp") {
+      const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]).toLowerCase();
+      if (
+        brand.startsWith("heic") ||
+        brand.startsWith("heix") ||
+        brand.startsWith("mif1") ||
+        brand.startsWith("msf1") ||
+        brand.startsWith("avif")
+      ) {
+        return true;
+      }
+    }
+  }
 
   return false;
 }
 
 /**
  * Searches for '%PDF-' header in byte stream.
+ * Scans up to the first 4 MB of the file to accommodate wrapper headers,
+ * EXIF metadata, camera containers, and offset payloads (e.g. offset=170536).
  * Returns the offset index or -1 if not found.
  */
 export function findPdfHeaderOffset(bytes: Uint8Array): number {
-  const maxScan = Math.min(bytes.length - 4, 32768);
+  const maxScan = Math.min(bytes.length - 4, 4 * 1024 * 1024);
   for (let i = 0; i < maxScan; i++) {
     if (
       bytes[i] === 0x25 && // %

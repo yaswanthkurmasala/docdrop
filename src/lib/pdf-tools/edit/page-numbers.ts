@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export type PageNumberPosition =
   | "bottom-center"
@@ -278,8 +279,7 @@ export async function addPageNumbersToPdf(
 
   options.onProgress?.(10, "Loading document in local RAM...");
 
-  const buffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   const total = pdfDoc.getPageCount();
 
   if (total === 0) {

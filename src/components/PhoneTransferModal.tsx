@@ -549,14 +549,26 @@ export function PhoneTransferModal({
                 ) : (
                   <>
                     {/* Instructions banner */}
-                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
-                      <p className="font-bold flex items-center gap-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Scan with any smartphone camera</span>
-                      </p>
-                      <p className="text-[11px] opacity-90 mt-0.5">
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold flex items-center gap-1.5">
+                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Scan with any smartphone camera</span>
+                        </p>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
+                          ZERO APP INSTALL
+                        </span>
+                      </div>
+                      <p className="text-[11px] opacity-90">
                         Open your phone camera, scan the QR code below, and select any document or photo to transfer straight into this laptop.
                       </p>
+                      {/* Wi-Fi Network Guidance */}
+                      <div className="pt-1 border-t border-amber-500/20 flex items-center gap-1.5 text-[11px] text-amber-900 dark:text-amber-200">
+                        <Wifi className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span>
+                          <strong>Wi-Fi tip:</strong> Ensure phone is on the same Wi-Fi network as this laptop (not mobile data 4G/5G).
+                        </span>
+                      </div>
                     </div>
 
                     {/* QR Code Container */}

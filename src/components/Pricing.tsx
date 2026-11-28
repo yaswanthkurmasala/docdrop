@@ -458,6 +458,17 @@ export function Pricing({ onSelectPlan, isPro }: PricingProps) {
         </motion.div>
       </div>
 
+      {/* Restore Purchases / License Key Link */}
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={() => onSelectPlan("Restore License", "₹0")}
+          className="text-xs text-zinc-500 hover:text-amber-500 underline underline-offset-4 cursor-pointer font-medium transition-colors"
+        >
+          Already bought a pass or have a Cashfree Order ID? Restore your Pro access here
+        </button>
+      </div>
+
       {/* Purchasing Power Parity & Cashfree Security Banner */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

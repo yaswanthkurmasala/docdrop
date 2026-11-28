@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, degrees, PDFPage, PDFFont, PDFImage } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export type WatermarkType = "text" | "image";
 
@@ -276,8 +277,7 @@ export async function watermarkPdf(
 
   options.onProgress?.(10, "Loading PDF in local memory...");
 
-  const buffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   const total = pdfDoc.getPageCount();
 
   if (total === 0) {

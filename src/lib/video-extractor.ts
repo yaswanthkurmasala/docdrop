@@ -494,24 +494,25 @@ export async function createDownloadStream(
   // 2. Video Streaming: Pipe through ffmpeg to guarantee genuine fragmented MP4 container
   if (!isAudio && ffmpegBinary && pythonOk) {
     try {
+      const qLower = (quality || "").toLowerCase();
       let formatSpec =
         "bestvideo[vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best";
-      if (quality === "2160p" || quality === "4k") {
+      if (qLower === "2160p" || qLower === "4k" || qLower.includes("2160") || qLower.includes("3840")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=2160]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best";
-      } else if (quality === "1440p" || quality === "2k") {
+      } else if (qLower === "1440p" || qLower === "2k" || qLower.includes("1440") || qLower.includes("2560")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=1440]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best";
-      } else if (quality === "1080p") {
+      } else if (qLower === "1080p" || qLower.includes("1080") || qLower.includes("1920")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best";
-      } else if (quality === "720p") {
+      } else if (qLower === "720p" || qLower.includes("720") || qLower.includes("1280")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best";
-      } else if (quality === "480p") {
+      } else if (qLower === "480p" || qLower.includes("480")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=480]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best";
-      } else if (quality === "360p") {
+      } else if (qLower === "360p" || qLower.includes("360")) {
         formatSpec =
           "bestvideo[vcodec^=avc1][height<=360]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=360]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best";
       }

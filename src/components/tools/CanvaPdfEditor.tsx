@@ -42,7 +42,7 @@ import {
   applyLivePdfEdits,
   LivePdfEditorResult,
 } from "@/lib/pdf-tools/edit/live-editor";
-import { ensureValidPdfFile } from "@/lib/pdf-tools/common/safe-pdf-loader";
+import { ensureValidPdfFile, safeLoadPdfJs } from "@/lib/pdf-tools/common/safe-pdf-loader";
 
 interface ExtractedTextSpan {
   id: string;
@@ -263,14 +263,7 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
       setIsRenderingPage(true);
       setRenderingError(null);
       try {
-        const cleanFile = await ensureValidPdfFile(file);
-        const { loadPdfJs } = await import("@/lib/pdf-tools/common/pdfjs-loader");
-        const pdfjs = await loadPdfJs();
-        const buffer = await cleanFile.arrayBuffer();
-        const doc = await pdfjs.getDocument({
-          data: new Uint8Array(buffer),
-          useSystemFonts: true,
-        }).promise;
+        const doc = await safeLoadPdfJs(file);
 
         if (!isMounted) return;
         pdfDocRef.current = doc;
@@ -279,7 +272,14 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
       } catch (err: any) {
         console.error("Failed to load PDF in Canva editor:", err);
         if (isMounted) {
-          setRenderingError(err?.message || "Failed to parse PDF document.");
+          const rawMsg = err?.message || "";
+          if (rawMsg.includes("No PDF header found") || rawMsg.includes("does not contain a valid PDF")) {
+            setRenderingError(
+              "Unable to parse document: No valid PDF header found. The file may be corrupted or in an unsupported format. Please try uploading a standard PDF or image."
+            );
+          } else {
+            setRenderingError(rawMsg || "Failed to parse PDF document.");
+          }
         }
       } finally {
         if (isMounted) setIsRenderingPage(false);

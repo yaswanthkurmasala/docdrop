@@ -18,16 +18,20 @@ function resolveSafeOrigin(req: Request): string {
 
   try {
     const parsed = new URL(reqOrigin);
-    if (ALLOWED_ORIGINS.has(parsed.origin)) {
-      return parsed.origin;
-    }
-    if (parsed.hostname.endsWith(".vercel.app") && parsed.protocol === "https:") {
+    if (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(parsed.hostname) ||
+      parsed.hostname.endsWith(".vercel.app") ||
+      parsed.hostname.endsWith(".docdrop.com") ||
+      ALLOWED_ORIGINS.has(parsed.origin)
+    ) {
       return parsed.origin;
     }
   } catch {
     // ignore invalid origin
   }
-  return fallback;
+  return process.env.NEXT_PUBLIC_SITE_URL || fallback;
 }
 
 export async function POST(req: Request) {

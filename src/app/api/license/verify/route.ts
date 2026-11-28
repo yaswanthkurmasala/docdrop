@@ -28,8 +28,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ valid: true, plan: "Verified Pro License" });
     }
 
-    // 3. Support activating with a verified paid Cashfree Order ID (dd_... or docdrop_...)
-    if (/^(dd|docdrop)_[a-zA-Z0-9_-]{6,64}$/.test(key)) {
+    // 3. Support activating with a verified paid Cashfree Order ID (dd_..., docdrop_..., or order_...)
+    if (/^(dd|docdrop|order)_[a-zA-Z0-9_-]{4,64}$/i.test(key)) {
       try {
         const cashfree = getCashfreeClient();
         const orderRes = await cashfree.PGFetchOrder(key);

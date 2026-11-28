@@ -22,22 +22,34 @@ function sanitizeWinAnsi(str: string): string {
     });
 }
 
-function wrapWords(text: string, maxLen: number = 80): string[] {
+function wrapWordsExact(
+  text: string,
+  font: any,
+  fontSize: number,
+  maxWidth: number
+): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
   const lines: string[] = [];
-  let curr = "";
-  for (const w of words) {
-    if (!curr) {
-      curr = w;
-    } else if (curr.length + w.length + 1 <= maxLen) {
-      curr += " " + w;
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    let testWidth = 0;
+    try {
+      testWidth = font.widthOfTextAtSize(testLine, fontSize);
+    } catch {
+      testWidth = testLine.length * (fontSize * 0.55);
+    }
+
+    if (testWidth <= maxWidth) {
+      currentLine = testLine;
     } else {
-      lines.push(curr);
-      curr = w;
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
     }
   }
-  if (curr) lines.push(curr);
+  if (currentLine) lines.push(currentLine);
   return lines;
 }
 
@@ -148,17 +160,22 @@ export async function convertWordToPdf(
       const cleanText = sanitizeWinAnsi(content.replace(/<[^>]+>/g, "").trim());
       if (!cleanText) continue;
 
-      ensureSpace(fontSize + 16);
-      currentY -= 8;
+      const headingLines = wrapWordsExact(cleanText, fontBold, fontSize, printableWidth);
+      ensureSpace(headingLines.length * (fontSize + 6) + 12);
+      currentY -= 6;
 
-      currentPage.drawText(cleanText.slice(0, 70), {
-        x: margin,
-        y: currentY,
-        size: fontSize,
-        font: fontBold,
-        color: rgb(0.1, 0.1, 0.1),
-      });
-      currentY -= fontSize + 10;
+      for (const hLine of headingLines) {
+        ensureSpace(fontSize + 6);
+        currentPage.drawText(hLine, {
+          x: margin,
+          y: currentY,
+          size: fontSize,
+          font: fontBold,
+          color: rgb(0.1, 0.1, 0.1),
+        });
+        currentY -= fontSize + 4;
+      }
+      currentY -= 4;
     } else if (tag === "p") {
       const cleanText = sanitizeWinAnsi(content.replace(/<[^>]+>/g, "").trim());
       if (!cleanText) {
@@ -166,7 +183,7 @@ export async function convertWordToPdf(
         continue;
       }
 
-      const wrapped = wrapWords(cleanText, 78);
+      const wrapped = wrapWordsExact(cleanText, font, 10, printableWidth);
       ensureSpace(wrapped.length * 15 + 8);
 
       for (const line of wrapped) {
@@ -191,7 +208,7 @@ export async function convertWordToPdf(
         if (!itemText) continue;
 
         const bullet = tag === "ol" ? `${idx++}. ` : "- ";
-        const wrapped = wrapWords(itemText, 72);
+        const wrapped = wrapWordsExact(itemText, font, 10, printableWidth - 24);
         ensureSpace(wrapped.length * 15);
 
         for (let lIdx = 0; lIdx < wrapped.length; lIdx++) {
@@ -275,7 +292,7 @@ export async function convertWordToPdf(
   // Fallback if no block tags matched
   if (!hasDrawnContent) {
     const cleanRaw = sanitizeWinAnsi(html.replace(/<[^>]+>/g, "\n").trim());
-    const wrapped = wrapWords(cleanRaw, 78);
+    const wrapped = wrapWordsExact(cleanRaw, font, 10, printableWidth);
     for (const line of wrapped) {
       ensureSpace(16);
       currentPage.drawText(line, {

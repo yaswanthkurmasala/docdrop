@@ -1,4 +1,5 @@
 import { PDFDocument } from "pdf-lib";
+import { safeLoadPdfDoc } from "../common/safe-pdf-loader.ts";
 
 export type RemoveFilterType = "custom" | "first_page" | "last_page" | "even_pages" | "odd_pages";
 
@@ -84,9 +85,7 @@ export async function removePagesFromPdf(
   const onProgress = options.onProgress;
   onProgress?.(10, "Loading PDF document in memory...");
 
-  const buffer = await file.arrayBuffer();
-  // Safe array buffer copy to prevent detached buffer issues
-  const pdfDoc = await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   const total = pdfDoc.getPageCount();
 
   if (total === 0) {

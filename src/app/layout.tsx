@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { PwaUpdateNotice } from "@/components/PwaUpdateNotice";
 import { GLOBAL_SEO_KEYWORDS, SITE_NAME, SITE_URL } from "@/lib/seo-data";
 
 export const metadata: Metadata = {
@@ -119,6 +120,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <PwaInstallPrompt />
+            <PwaUpdateNotice />
           </AuthProvider>
         </ThemeProvider>
         {/* PWA Offline Service Worker Registration */}

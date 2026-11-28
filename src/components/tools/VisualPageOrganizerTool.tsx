@@ -112,7 +112,9 @@ export function VisualPageOrganizerTool({
       }
       setPages(initialPages);
 
-      // Render thumbnail canvases sequentially or in lightweight microtasks
+      // Render thumbnail canvases in memory-efficient chunks with instant GPU texture cleanup
+      const thumbnailMap: Record<number, string> = {};
+
       for (let i = 1; i <= numPages; i++) {
         try {
           const page = await pdf.getPage(i);
@@ -124,10 +126,25 @@ export function VisualPageOrganizerTool({
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             await page.render({ canvasContext: ctx as any, viewport } as any).promise;
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+            thumbnailMap[i - 1] = dataUrl;
 
+            // Immediately destroy canvas GPU backing store to prevent memory pressure
+            canvas.width = 1;
+            canvas.height = 1;
+            ctx.clearRect(0, 0, 1, 1);
+          }
+
+          if (typeof (page as any).cleanup === "function") {
+            (page as any).cleanup();
+          }
+
+          // Batch state updates every 4 pages or at the last page to minimize DOM recalculations
+          if (i % 4 === 0 || i === numPages) {
             setPages((prev) =>
-              prev.map((p, idx) => (idx === i - 1 ? { ...p, thumbnailUrl: dataUrl } : p))
+              prev.map((p, idx) =>
+                thumbnailMap[idx] && !p.thumbnailUrl ? { ...p, thumbnailUrl: thumbnailMap[idx] } : p
+              )
             );
           }
         } catch (e) {

@@ -57,6 +57,17 @@ export function CheckoutModal({
   const [status, setStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  React.useEffect(() => {
+    if (
+      selectedPlan?.name?.toLowerCase().includes("license") ||
+      selectedPlan?.name?.toLowerCase().includes("restore")
+    ) {
+      setActiveTab("license");
+    } else {
+      setActiveTab("checkout");
+    }
+  }, [selectedPlan]);
+
   const planName = selectedPlan?.name || "Quick Pass (48h)";
   const planPrice = selectedPlan?.price || "₹49";
   const { amount: inrAmount, display: inrDisplay } = resolvePlanAmountInr(planName, planPrice);
@@ -348,7 +359,7 @@ export function CheckoutModal({
                     />
                   )}
                   <Key className="w-3.5 h-3.5" />
-                  <span>Have a License Key?</span>
+                  <span>Restore / License Key</span>
                 </button>
               </div>
 

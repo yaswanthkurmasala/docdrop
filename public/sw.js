@@ -28,6 +28,13 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
+// Listen for SKIP_WAITING from PWA update prompt
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 // Activate: Clean up old cache versions and claim clients
 self.addEventListener("activate", (event) => {
   event.waitUntil(

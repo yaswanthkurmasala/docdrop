@@ -1,4 +1,5 @@
 import { PDFDocument, degrees, rgb, StandardFonts } from "pdf-lib";
+import { safeLoadPdfDoc } from "./common/safe-pdf-loader.ts";
 
 export interface MergeResult {
   mergedBytes: Uint8Array;
@@ -28,8 +29,7 @@ export interface MergeOptions {
  * Reads a PDF file and returns its total page count.
  */
 export async function getPdfPageCount(file: File): Promise<number> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const pdfDoc = await safeLoadPdfDoc(file);
   return pdfDoc.getPageCount();
 }
 
@@ -86,8 +86,7 @@ export async function mergePdfFiles(
     const rotation = "rotation" in item ? item.rotation || 0 : 0;
     const pageRange = "pageRange" in item ? item.pageRange : "all";
 
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+    const pdfDoc = await safeLoadPdfDoc(file);
     const fileTotalPages = pdfDoc.getPageCount();
 
     const targetIndices = parsePageRange(pageRange, fileTotalPages);

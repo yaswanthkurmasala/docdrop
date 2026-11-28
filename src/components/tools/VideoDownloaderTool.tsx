@@ -190,6 +190,33 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
         throw new Error("Unable to establish readable media stream.");
       }
 
+      // High-capacity direct-to-disk streaming via File System Access API
+      const hasFileSystemAccess = typeof window !== "undefined" && "showSaveFilePicker" in window;
+      let fileWritable: any = null;
+
+      if (hasFileSystemAccess) {
+        try {
+          const mimeType = selectedResolution.format === "mp3" ? "audio/mpeg" : "video/mp4";
+          const fileHandle = await (window as any).showSaveFilePicker({
+            suggestedName: finalFileName,
+            types: [
+              {
+                description: selectedResolution.format === "mp3" ? "MP3 Audio" : "MP4 Video",
+                accept: { [mimeType]: [`.${selectedResolution.format}`] },
+              },
+            ],
+          });
+          fileWritable = await fileHandle.createWritable();
+        } catch (pickErr: any) {
+          if (pickErr?.name === "AbortError") {
+            setIsDownloading(false);
+            setDownloadProgress("");
+            return;
+          }
+          fileWritable = null;
+        }
+      }
+
       const chunks: Uint8Array[] = [];
       let receivedBytes = 0;
 
@@ -197,7 +224,11 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
         const { done, value } = await reader.read();
         if (done) break;
         if (value) {
-          chunks.push(value);
+          if (fileWritable) {
+            await fileWritable.write(value);
+          } else {
+            chunks.push(value);
+          }
           receivedBytes += value.length;
 
           if (totalBytes > 0) {
@@ -218,28 +249,32 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
         throw new Error("No media data was received from the stream. Please try another quality or format.");
       }
 
-      setDownloadProgress("Assembling file and saving to disk...");
-      setDownloadPercentage(100);
+      if (fileWritable) {
+        await fileWritable.close();
+      } else {
+        setDownloadProgress("Assembling file and saving to disk...");
+        setDownloadPercentage(100);
 
-      const mimeType =
-        res.headers.get("content-type") ||
-        (selectedResolution.format === "mp3" ? "audio/mpeg" : "video/mp4");
+        const mimeType =
+          res.headers.get("content-type") ||
+          (selectedResolution.format === "mp3" ? "audio/mpeg" : "video/mp4");
 
-      const blob = new Blob(chunks as BlobPart[], { type: mimeType });
-      const blobUrl = URL.createObjectURL(blob);
+        const blob = new Blob(chunks as BlobPart[], { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
 
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = finalFileName;
-      document.body.appendChild(a);
-      a.click();
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = finalFileName;
+        document.body.appendChild(a);
+        a.click();
 
-      setTimeout(() => {
-        try {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(blobUrl);
-        } catch {}
-      }, 2000);
+        setTimeout(() => {
+          try {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          } catch {}
+        }, 2000);
+      }
 
       setIsDownloading(false);
       setDownloadSuccess(true);
