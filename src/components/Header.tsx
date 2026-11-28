@@ -32,6 +32,7 @@ import {
   EyeOff,
   GitCompare,
   Languages,
+  Video,
   Monitor,
   Sun,
   Moon,
@@ -74,6 +75,8 @@ const getCategoryColor = (cat: ToolCategory) => {
       return "bg-sky-500 text-sky-500";
     case "intelligence":
       return "bg-indigo-500 text-indigo-500";
+    case "media":
+      return "bg-violet-500 text-violet-500";
     default:
       return "bg-zinc-500 text-zinc-500";
   }
@@ -146,6 +149,8 @@ const getToolItemIcon = (id: string) => {
       return <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
     case "translate-pdf":
       return <Languages className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
+    case "video-downloader":
+      return <Video className="w-4 h-4 text-violet-600 dark:text-violet-400" />;
     default:
       return <FileText className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />;
   }

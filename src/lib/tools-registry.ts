@@ -5,7 +5,8 @@ export type ToolCategory =
   | "convertFrom"
   | "edit"
   | "security"
-  | "intelligence";
+  | "intelligence"
+  | "media";
 
 export interface ToolDefinition {
   id: string;
@@ -26,6 +27,7 @@ export const CATEGORIES: Record<ToolCategory, { label: string; iconColor: string
   edit: { label: "EDIT PDF", iconColor: "text-purple-500" },
   security: { label: "PDF SECURITY", iconColor: "text-sky-500" },
   intelligence: { label: "PDF INTELLIGENCE", iconColor: "text-indigo-500" },
+  media: { label: "VIDEO & MEDIA", iconColor: "text-violet-500" },
 };
 
 export const TOOLS_REGISTRY: ToolDefinition[] = [
@@ -349,5 +351,17 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     badge: "AI",
     status: "active",
     accepts: [".pdf", ".docx", ".txt"],
+  },
+
+  // 8. MEDIA & VIDEO DOWNLOADER
+  {
+    id: "video-downloader",
+    name: "Universal Video Downloader",
+    description: "Download high-definition videos and audio from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, and Vimeo across all resolutions (1080p, 720p, 480p, MP3).",
+    category: "media",
+    categoryLabel: "VIDEO & MEDIA",
+    badge: "New",
+    status: "active",
+    accepts: [".mp4", ".mp3", "url"],
   },
 ];

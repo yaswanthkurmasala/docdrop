@@ -32,6 +32,7 @@ import {
   Presentation,
   ShieldCheck,
   Flame,
+  Video,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY, CATEGORIES, type ToolCategory } from "@/lib/tools-registry";
@@ -108,6 +109,8 @@ const getToolIcon = (id: string) => {
       return <Sparkles className="w-4 h-4 text-indigo-600" />;
     case "translate-pdf":
       return <Languages className="w-4 h-4 text-indigo-600" />;
+    case "video-downloader":
+      return <Video className="w-4 h-4 text-violet-600" />;
     default:
       return <FileText className="w-4 h-4 text-zinc-600" />;
   }
@@ -156,6 +159,12 @@ const getCategoryStyles = (category: string) => {
         iconBg: "bg-indigo-500/10 dark:bg-indigo-500/15 border-indigo-500/25 text-indigo-600 dark:text-indigo-400",
         sheen: "from-indigo-500/[0.08] dark:from-indigo-500/[0.12]",
         pill: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+      };
+    case "media":
+      return {
+        iconBg: "bg-violet-500/10 dark:bg-violet-500/15 border-violet-500/25 text-violet-600 dark:text-violet-400",
+        sheen: "from-violet-500/[0.08] dark:from-violet-500/[0.12]",
+        pill: "text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20",
       };
     default:
       return {

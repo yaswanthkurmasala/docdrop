@@ -198,6 +198,23 @@ const CUSTOM_TOOL_SEO: Record<string, Partial<ToolSeoProfile>> = {
       "esign pdf privately",
     ],
   },
+  "video-downloader": {
+    seoTitle: "Universal Video Downloader — YouTube, Instagram, X, TikTok, Facebook (All Resolutions) | DocDrop",
+    seoDescription:
+      "Paste any video link from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, or Vimeo to download in 1080p, 720p, 480p, or high-bitrate MP3 audio. Fast, watermark-free & private.",
+    keywords: [
+      "video downloader",
+      "youtube video downloader",
+      "instagram reel downloader",
+      "twitter video downloader",
+      "x video downloader",
+      "tiktok video downloader no watermark",
+      "facebook video download",
+      "all in one video downloader",
+      "1080p video downloader",
+      "video to mp3",
+    ],
+  },
 };
 
 export function getToolSeoProfile(tool: ToolDefinition): ToolSeoProfile {

@@ -29,6 +29,7 @@ import {
   CornerDownLeft,
   ArrowRight,
   Flame,
+  Video,
 } from "lucide-react";
 import { TOOLS_REGISTRY, ToolDefinition } from "@/lib/tools-registry";
 
@@ -54,6 +55,8 @@ const getCategoryIcon = (category: string) => {
       return <Lock className="w-4 h-4 text-sky-500" />;
     case "intelligence":
       return <Sparkles className="w-4 h-4 text-indigo-500" />;
+    case "media":
+      return <Video className="w-4 h-4 text-violet-500" />;
     default:
       return <FileText className="w-4 h-4 text-zinc-500" />;
   }

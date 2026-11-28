@@ -6,6 +6,7 @@ import { Hero } from "@/components/Hero";
 import { ConverterWorkspace } from "@/components/ConverterWorkspace";
 import { MergePdfTool } from "@/components/tools/MergePdfTool";
 import { UniversalPdfTool } from "@/components/tools/UniversalPdfTool";
+import { VideoDownloaderTool } from "@/components/tools/VideoDownloaderTool";
 import { ToolsHub } from "@/components/ToolsHub";
 import { Features } from "@/components/Features";
 import { Pricing } from "@/components/Pricing";
@@ -14,7 +15,7 @@ import { Footer } from "@/components/Footer";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon, Search } from "lucide-react";
+import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon, Search, Video } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY } from "@/lib/tools-registry";
@@ -261,6 +262,12 @@ export function DocDropStudio({
                   icon: ImageIcon,
                   iconColor: "text-zinc-700 dark:text-zinc-300",
                 },
+                {
+                  id: "video-downloader",
+                  label: "Video Downloader",
+                  icon: Video,
+                  iconColor: "text-violet-600 dark:text-violet-400",
+                },
               ].map((tool) => {
                 const Icon = tool.icon;
                 const isActive = activeToolId === tool.id;
@@ -339,6 +346,17 @@ export function DocDropStudio({
                 className="will-change-[transform,opacity]"
               >
                 <MergePdfTool isPro={effectiveIsPro} onOpenPricing={handleOpenPricing} />
+              </motion.div>
+            ) : activeToolId === "video-downloader" ? (
+              <motion.div
+                key="video-downloader-view"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16, ease: motionTokens.ease.standard }}
+                className="will-change-[transform,opacity]"
+              >
+                <VideoDownloaderTool isPro={effectiveIsPro} onOpenPricing={handleOpenPricing} />
               </motion.div>
             ) : activeToolId === "pdf-to-markdown" ? (
               <motion.div
