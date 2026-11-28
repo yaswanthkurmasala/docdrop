@@ -14,7 +14,7 @@ export interface ToolDefinition {
   description: string;
   category: ToolCategory;
   categoryLabel: string;
-  badge?: "Popular" | "AI" | "New" | "Pro";
+  badge?: "Popular" | "AI" | "New" | "Pro" | "4K";
   status: "active" | "ready";
   accepts: string[];
 }
@@ -357,10 +357,10 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
   {
     id: "video-downloader",
     name: "Universal Video Downloader",
-    description: "Download high-definition videos and audio from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, and Vimeo across all resolutions (1080p, 720p, 480p, MP3).",
+    description: "Download ultra high-definition 4K, 2K, 1080p, 720p, 480p videos and audio from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, and Vimeo with zero watermarks.",
     category: "media",
     categoryLabel: "VIDEO & MEDIA",
-    badge: "New",
+    badge: "4K",
     status: "active",
     accepts: [".mp4", ".mp3", "url"],
   },

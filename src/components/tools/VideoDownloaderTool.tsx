@@ -17,8 +17,9 @@ import {
   ShieldCheck,
   Zap,
   Check,
-  ArrowRight,
   ExternalLink,
+  Flame,
+  Layers,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
@@ -49,6 +50,8 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
   const [customFileName, setCustomFileName] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [activeDownloadUrl, setActiveDownloadUrl] = useState<string | null>(null);
+  const [activeDownloadName, setActiveDownloadName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [hasPasted, setHasPasted] = useState(false);
 
@@ -64,6 +67,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setIsLoadingInfo(true);
     setVideoData(null);
     setDownloadSuccess(false);
+    setActiveDownloadUrl(null);
 
     try {
       const res = await fetch("/api/video-downloader/info", {
@@ -78,8 +82,12 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
       }
 
       setVideoData(data);
-      // Pre-select 1080p or first resolution
-      const defaultRes = data.resolutions.find((r: VideoResolutionOption) => r.id === "1080p") || data.resolutions[0];
+
+      // Pre-select 4K if supported, else 1080p, else first resolution
+      const fourKRes = data.resolutions.find((r: VideoResolutionOption) => r.is4K || r.id === "2160p");
+      const tenEightyRes = data.resolutions.find((r: VideoResolutionOption) => r.id === "1080p");
+      const defaultRes = fourKRes || tenEightyRes || data.resolutions[0];
+
       setSelectedResolution(defaultRes);
       setSelectedFormatType(defaultRes?.type || "video");
       setCustomFileName(data.defaultFileName || "video");
@@ -113,6 +121,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
 
     setIsDownloading(true);
     setError(null);
+    setDownloadSuccess(false);
 
     const ext = selectedResolution.format;
     const effectiveBase = computeEffectiveFileName(videoData.defaultFileName, customFileName).replace(/\.[^/.]+$/, "");
@@ -124,21 +133,27 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
       selectedResolution.format
     )}&fileName=${encodeURIComponent(finalFileName)}`;
 
-    // Trigger native browser download link
+    setActiveDownloadUrl(downloadEndpoint);
+    setActiveDownloadName(finalFileName);
+
+    // Reliable browser download trigger via anchor
     const a = document.createElement("a");
     a.href = downloadEndpoint;
     a.download = finalFileName;
+    a.target = "_self";
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
 
     setTimeout(() => {
+      try {
+        document.body.removeChild(a);
+      } catch {}
       setIsDownloading(false);
       setDownloadSuccess(true);
       try {
-        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
       } catch {}
-    }, 1500);
+    }, 1200);
   };
 
   const resetAll = () => {
@@ -148,7 +163,10 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
     setCustomFileName("");
     setError(null);
     setDownloadSuccess(false);
+    setActiveDownloadUrl(null);
   };
+
+  const has4KOption = videoData?.resolutions.some((r) => r.is4K || r.id === "2160p");
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -157,12 +175,15 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/70 border border-violet-300 dark:border-violet-800 text-violet-800 dark:text-violet-300 text-xs font-bold shadow-2xs">
           <Zap className="w-3.5 h-3.5 text-violet-500 fill-violet-500" />
           <span>Universal Video & Audio Downloader</span>
+          <span className="ml-1 px-1.5 py-0.2 rounded-md bg-amber-500 text-zinc-950 font-black text-[10px] tracking-wide">
+            4K SUPPORT
+          </span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">
-          Download Videos in All Resolutions
+          Download Videos in All Resolutions (up to 4K)
         </h2>
         <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 max-w-xl mx-auto">
-          Paste any link from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, Vimeo & download directly in 1080p, 720p, 480p, or high-fidelity MP3.
+          Paste any link from YouTube, Instagram Reels, X (Twitter), Facebook, TikTok, Reddit, Vimeo & download directly in Ultra HD 4K, 2K, 1080p, 720p, 480p, or high-fidelity MP3.
         </p>
 
         {/* Supported Platforms Pills */}
@@ -227,7 +248,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
               {isLoadingInfo ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Inspecting...</span>
+                  <span>Inspecting formats...</span>
                 </>
               ) : (
                 <>
@@ -249,9 +270,12 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
               setUrlInput(u);
               handleFetchVideo(u);
             }}
-            className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-mono transition-colors cursor-pointer"
+            className="text-[11px] px-2.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-mono transition-colors cursor-pointer flex items-center gap-1"
           >
-            YouTube Video
+            <span>YouTube 4K Remaster</span>
+            <span className="px-1 py-0.1 text-[9px] rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
+              4K
+            </span>
           </button>
         </div>
 
@@ -264,7 +288,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
           >
             <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <span className="font-bold">Extraction Notice:</span>
+              <span className="font-bold">Notice:</span>
               <p>{error}</p>
             </div>
           </motion.div>
@@ -284,7 +308,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
             {/* Top Video Metadata Ribbon */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 pb-5 border-b border-zinc-200/80 dark:border-zinc-800">
               {videoData.thumbnail ? (
-                <div className="relative w-full sm:w-44 h-28 rounded-2xl overflow-hidden bg-black shrink-0 border border-zinc-200 dark:border-zinc-800 shadow-sm group">
+                <div className="relative w-full sm:w-48 h-30 rounded-2xl overflow-hidden bg-black shrink-0 border border-zinc-200 dark:border-zinc-800 shadow-sm group">
                   <img
                     src={videoData.thumbnail}
                     alt={videoData.title}
@@ -293,19 +317,35 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                   <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[10px] font-bold text-white uppercase tracking-wider">
                     {videoData.platformName}
                   </div>
+                  {has4KOption && (
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-linear-to-r from-amber-500 to-orange-500 text-[10px] font-black text-zinc-950 uppercase tracking-wider shadow-sm flex items-center gap-1">
+                      <Flame className="w-3 h-3 text-zinc-950 fill-zinc-950" />
+                      <span>4K ULTRA HD</span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="w-full sm:w-44 h-28 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
+                <div className="w-full sm:w-48 h-30 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-200 dark:border-zinc-700">
                   <Film className="w-8 h-8 text-zinc-400" />
                 </div>
               )}
 
               <div className="space-y-1.5 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800">
-                    {videoData.platformName} Media
+                    {videoData.platformName}
                   </span>
-                  <span className="text-[11px] text-zinc-500 font-medium">Ready to download</span>
+                  {has4KOption && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>4K Ultra HD Available</span>
+                    </span>
+                  )}
+                  {videoData.duration && (
+                    <span className="text-[11px] text-zinc-500 font-mono font-medium">
+                      Duration: {videoData.duration}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-base sm:text-lg font-bold text-zinc-950 dark:text-white line-clamp-2 leading-snug">
                   {videoData.title}
@@ -320,7 +360,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Select Download Format & Quality:
+                  Select Resolution & Quality:
                 </span>
                 <div className="flex items-center p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold">
                   <button
@@ -364,6 +404,7 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                   .filter((res) => res.type === selectedFormatType)
                   .map((res) => {
                     const isSelected = selectedResolution?.id === res.id;
+                    const is4K = res.is4K || res.id === "2160p";
                     return (
                       <button
                         key={res.id}
@@ -371,17 +412,36 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                         onClick={() => setSelectedResolution(res)}
                         className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
                           isSelected
-                            ? "bg-violet-50 dark:bg-violet-950/40 border-violet-500 ring-2 ring-violet-500/30 shadow-sm"
+                            ? is4K
+                              ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500 ring-2 ring-amber-500/40 shadow-md shadow-amber-500/10"
+                              : "bg-violet-50 dark:bg-violet-950/40 border-violet-500 ring-2 ring-violet-500/30 shadow-sm"
+                            : is4K
+                            ? "bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800 hover:border-amber-400"
                             : "bg-white dark:bg-zinc-950/50 border-zinc-200/90 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700"
                         }`}
                       >
-                        {res.recommended && (
+                        {is4K ? (
+                          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 text-zinc-950 font-black text-[9px] uppercase tracking-wider shadow-xs">
+                            4K ULTRA HD
+                          </div>
+                        ) : res.recommended ? (
                           <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-violet-600 text-white font-bold text-[9px] uppercase tracking-wider">
                             Best Quality
                           </div>
-                        )}
+                        ) : res.badge ? (
+                          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-semibold text-[9px] uppercase tracking-wider">
+                            {res.badge}
+                          </div>
+                        ) : null}
+
                         <div className="space-y-1">
-                          <span className="text-xs font-bold text-zinc-950 dark:text-white block font-mono">
+                          <span
+                            className={`text-xs font-extrabold block font-mono ${
+                              is4K
+                                ? "text-amber-900 dark:text-amber-300"
+                                : "text-zinc-950 dark:text-white"
+                            }`}
+                          >
                             {res.label}
                           </span>
                           <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
@@ -407,11 +467,35 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
               />
             </div>
 
+            {/* Direct Link Banner if download was initiated */}
+            {downloadSuccess && activeDownloadUrl && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Your download has started for <strong>{activeDownloadName}</strong>! Check your browser's download shelf.
+                  </span>
+                </div>
+                <a
+                  href={activeDownloadUrl}
+                  download={activeDownloadName}
+                  className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-300 underline hover:text-emerald-800 cursor-pointer text-right shrink-0"
+                >
+                  <span>Click here if download didn't start</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </motion.div>
+            )}
+
             {/* Action Bar */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-200/80 dark:border-zinc-800">
               <div className="text-xs text-zinc-500 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>Direct stream • Ad-free • No watermark</span>
+                <span>Zero Cloud Leak • Direct stream • Ad-free</span>
               </div>
 
               <div className="flex items-center gap-2.5 w-full sm:w-auto">
@@ -427,23 +511,27 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
                   type="button"
                   disabled={isDownloading || !selectedResolution}
                   onClick={handleDownload}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer disabled:opacity-50 min-w-[200px]"
+                  className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer disabled:opacity-50 min-w-[220px] ${
+                    selectedResolution?.is4K || selectedResolution?.id === "2160p"
+                      ? "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 shadow-amber-500/25"
+                      : "bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950"
+                  }`}
                 >
                   {isDownloading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Streaming {selectedResolution?.label}...</span>
+                      <span>Streaming {selectedResolution?.quality}...</span>
                     </>
                   ) : downloadSuccess ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      <span>Download Started!</span>
+                      <span>Download Initiated!</span>
                     </>
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
                       <span>
-                        Download {selectedResolution?.label.split(" ")[0]} ({selectedResolution?.format.toUpperCase()})
+                        Download {selectedResolution?.quality} ({selectedResolution?.format.toUpperCase()})
                       </span>
                     </>
                   )}
