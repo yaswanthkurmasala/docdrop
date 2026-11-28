@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { generateQrDataUrl } from "@/lib/qr-code";
 import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
+import { ensureValidPdfFile, isImageFile } from "@/lib/pdf-tools/common/safe-pdf-loader";
 
 interface PhoneTransferModalProps {
   isOpen: boolean;
@@ -243,8 +244,12 @@ export function PhoneTransferModal({
           );
           if (fileRes.ok) {
             const blob = await fileRes.blob();
+            const isImg = isImageFile(blob, firstIncoming.name);
+            const mimeType = isImg
+              ? firstIncoming.type || blob.type || "image/jpeg"
+              : firstIncoming.type || blob.type || "application/pdf";
             const newFile = new File([blob], firstIncoming.name, {
-              type: firstIncoming.type || blob.type || "application/pdf",
+              type: mimeType,
               lastModified: Date.now(),
             });
 
@@ -365,9 +370,21 @@ export function PhoneTransferModal({
   };
 
   // Launch tool on laptop with the received file pre-loaded
-  const handleLaunchTool = (toolSlug: string) => {
-    const f = receivedFile || fileToSend;
+  const handleLaunchTool = async (toolSlug: string) => {
+    let f = receivedFile || fileToSend;
     if (f) {
+      // If target tool expects a PDF and file is an image, convert to clean PDF first
+      const isPdfTool =
+        toolSlug !== "word-to-pdf" &&
+        toolSlug !== "excel-to-pdf" &&
+        toolSlug !== "html-to-pdf" &&
+        toolSlug !== "images-to-pdf" &&
+        toolSlug !== "video-downloader";
+      if (isPdfTool) {
+        try {
+          f = await ensureValidPdfFile(f);
+        } catch {}
+      }
       setChainedDocument(f);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("docdrop:file-received", { detail: { file: f } }));

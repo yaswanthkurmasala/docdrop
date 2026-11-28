@@ -42,6 +42,7 @@ import {
   applyLivePdfEdits,
   LivePdfEditorResult,
 } from "@/lib/pdf-tools/edit/live-editor";
+import { ensureValidPdfFile } from "@/lib/pdf-tools/common/safe-pdf-loader";
 
 interface ExtractedTextSpan {
   id: string;
@@ -262,9 +263,10 @@ export const CanvaPdfEditor: React.FC<CanvaPdfEditorProps> = ({
       setIsRenderingPage(true);
       setRenderingError(null);
       try {
+        const cleanFile = await ensureValidPdfFile(file);
         const { loadPdfJs } = await import("@/lib/pdf-tools/common/pdfjs-loader");
         const pdfjs = await loadPdfJs();
-        const buffer = await file.arrayBuffer();
+        const buffer = await cleanFile.arrayBuffer();
         const doc = await pdfjs.getDocument({
           data: new Uint8Array(buffer),
           useSystemFonts: true,

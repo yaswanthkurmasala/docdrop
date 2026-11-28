@@ -33,6 +33,7 @@ import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
 import { organizePdfPages, type PageOrganizeItem } from "@/lib/pdf-tools/organize/organize-pages";
 import { setChainedDocument, getChainedDocument } from "@/lib/pdf-tools/chained-document";
+import { ensureValidPdfFile } from "@/lib/pdf-tools/common/safe-pdf-loader";
 
 export interface VisualPageItem {
   id: string; // unique item id
@@ -79,13 +80,16 @@ export function VisualPageOrganizerTool({
     setSelectedIds(new Set());
 
     try {
+      const cleanFile = await ensureValidPdfFile(targetFile);
+      setFile(cleanFile);
+
       const pdfjs = await import("pdfjs-dist");
       // Use local pre-cached worker from public directory for 100% offline support
       if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
       }
 
-      const buffer = await targetFile.arrayBuffer();
+      const buffer = await cleanFile.arrayBuffer();
       const loadingTask = pdfjs.getDocument({
         data: new Uint8Array(buffer),
         cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/cmaps/",
@@ -132,7 +136,7 @@ export function VisualPageOrganizerTool({
         setRenderProgress({ current: i, total: numPages });
       }
 
-      setCustomFileName(targetFile.name.replace(/\.[^/.]+$/, "") + "_organized");
+      setCustomFileName(cleanFile.name.replace(/\.[^/.]+$/, "") + "_organized");
     } catch (err: any) {
       console.error("[VisualOrganizer] Failed to load PDF:", err);
       setError(err?.message || "Failed to render document pages. Please try another file.");
@@ -155,24 +159,30 @@ export function VisualPageOrganizerTool({
       }
     }
 
-    const handleFileReceived = (e: any) => {
+    const handleFileReceived = async (e: any) => {
       const f = e.detail?.file;
-      if (f && f.name.toLowerCase().endsWith(".pdf")) {
-        setFile(f);
-        loadThumbnails(f);
+      if (f) {
+        try {
+          const clean = await ensureValidPdfFile(f);
+          setFile(clean);
+          loadThumbnails(clean);
+        } catch (err: any) {
+          setError(err?.message || "Received file is not a supported PDF or image.");
+        }
       }
     };
     window.addEventListener("docdrop:file-received", handleFileReceived);
     return () => window.removeEventListener("docdrop:file-received", handleFileReceived);
   }, [initialFile, loadThumbnails]);
 
-  const handleFileSelect = (selectedFile: File) => {
-    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
-      setError("Please drop or select a valid PDF file.");
-      return;
+  const handleFileSelect = async (selectedFile: File) => {
+    try {
+      const clean = await ensureValidPdfFile(selectedFile);
+      setFile(clean);
+      loadThumbnails(clean);
+    } catch (err: any) {
+      setError(err?.message || "Please drop or select a valid PDF or image file.");
     }
-    setFile(selectedFile);
-    loadThumbnails(selectedFile);
   };
 
   // Reorder pages in array

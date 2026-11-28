@@ -145,6 +145,7 @@ import {
 import { callGeminiAi } from "@/lib/gemini";
 import { getPdfPageCount } from "@/lib/pdf-tools/merge-pdf";
 import { FREE_TIER_LIMITS, PRO_TIER_LIMITS } from "@/lib/pricing-plans";
+import { ensureValidPdfFile } from "@/lib/pdf-tools/common/safe-pdf-loader";
 import dynamic from "next/dynamic";
 import { type SignStudioConfig } from "@/components/tools/SignPdfStudio";
 
@@ -638,8 +639,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const loadOrganizeThumbnails = async (pdfFile: File) => {
     setIsLoadingThumbnails(true);
     try {
+      const cleanFile = await ensureValidPdfFile(pdfFile);
       const pdfjs = await import("@/lib/pdf-tools/common/pdfjs-loader").then((m) => m.loadPdfJs());
-      const buffer = await pdfFile.arrayBuffer();
+      const buffer = await cleanFile.arrayBuffer();
       const doc = await pdfjs.getDocument({
         data: new Uint8Array(buffer.slice(0)),
         useSystemFonts: true,
@@ -760,8 +762,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const loadSplitThumbnails = async (pdfFile: File) => {
     setIsLoadingSplitThumbnails(true);
     try {
+      const cleanFile = await ensureValidPdfFile(pdfFile);
       const pdfjs = await import("@/lib/pdf-tools/common/pdfjs-loader").then((m) => m.loadPdfJs());
-      const buffer = await pdfFile.arrayBuffer();
+      const buffer = await cleanFile.arrayBuffer();
       const doc = await pdfjs.getDocument({
         data: new Uint8Array(buffer.slice(0)),
         useSystemFonts: true,
@@ -909,8 +912,9 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
   const loadRemoveThumbnails = async (pdfFile: File) => {
     setIsLoadingRemoveThumbnails(true);
     try {
+      const cleanFile = await ensureValidPdfFile(pdfFile);
       const pdfjs = await import("@/lib/pdf-tools/common/pdfjs-loader").then((m) => m.loadPdfJs());
-      const buffer = await pdfFile.arrayBuffer();
+      const buffer = await cleanFile.arrayBuffer();
       const doc = await pdfjs.getDocument({
         data: new Uint8Array(buffer.slice(0)),
         useSystemFonts: true,
@@ -1506,24 +1510,38 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       setMultiFiles((prev) => [...prev, ...filesArr]);
     } else {
       const f = selectedFiles[0];
-      setFile(f);
-      if (toolId === "organize-pdf") {
-        loadOrganizeThumbnails(f);
-      } else if (toolId === "split-pdf" || toolId === "extract-pages") {
-        loadSplitThumbnails(f);
-      } else if (toolId === "remove-pages") {
-        loadRemoveThumbnails(f);
-      } else if (toolId === "ocr-pdf") {
-        loadOcrThumbnailsAndPreflight(f);
-      } else if (toolId === "edit-pdf") {
-        loadAnnotateThumbnail(f);
-      } else if (toolId === "add-watermark") {
-        loadWatermarkThumbnail(f);
-      } else if (toolId === "add-page-numbers") {
-        loadNumberThumbnails(f);
-      } else if (toolId === "redact-pdf") {
-        loadRedactThumbnail(f, 1);
-      }
+      const isPdfTool =
+        toolId !== "word-to-pdf" &&
+        toolId !== "excel-to-pdf" &&
+        toolId !== "html-to-pdf" &&
+        toolId !== "images-to-pdf";
+
+      const processSelectedFile = async () => {
+        try {
+          const cleanFile = isPdfTool ? await ensureValidPdfFile(f) : f;
+          setFile(cleanFile);
+          if (toolId === "organize-pdf") {
+            loadOrganizeThumbnails(cleanFile);
+          } else if (toolId === "split-pdf" || toolId === "extract-pages") {
+            loadSplitThumbnails(cleanFile);
+          } else if (toolId === "remove-pages") {
+            loadRemoveThumbnails(cleanFile);
+          } else if (toolId === "ocr-pdf") {
+            loadOcrThumbnailsAndPreflight(cleanFile);
+          } else if (toolId === "edit-pdf") {
+            loadAnnotateThumbnail(cleanFile);
+          } else if (toolId === "add-watermark") {
+            loadWatermarkThumbnail(cleanFile);
+          } else if (toolId === "add-page-numbers") {
+            loadNumberThumbnails(cleanFile);
+          } else if (toolId === "redact-pdf") {
+            loadRedactThumbnail(cleanFile, 1);
+          }
+        } catch (err: any) {
+          setError(err?.message || "Failed to process document file.");
+        }
+      };
+      processSelectedFile();
     }
   };
 
@@ -1591,26 +1609,36 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
 
   // Check for in-memory chained document from another tool or live phone transfer
   useEffect(() => {
-    const handleLoadTargetFile = (targetFile: File) => {
-      setFile(targetFile);
-      setError(null);
-      setResult(null);
-      if (toolId === "organize-pdf") {
-        loadOrganizeThumbnails(targetFile);
-      } else if (toolId === "split-pdf" || toolId === "extract-pages") {
-        loadSplitThumbnails(targetFile);
-      } else if (toolId === "remove-pages") {
-        loadRemoveThumbnails(targetFile);
-      } else if (toolId === "ocr-pdf") {
-        loadOcrThumbnailsAndPreflight(targetFile);
-      } else if (toolId === "edit-pdf") {
-        loadAnnotateThumbnail(targetFile);
-      } else if (toolId === "add-watermark") {
-        loadWatermarkThumbnail(targetFile);
-      } else if (toolId === "add-page-numbers") {
-        loadNumberThumbnails(targetFile);
-      } else if (toolId === "redact-pdf") {
-        loadRedactThumbnail(targetFile, 1);
+    const handleLoadTargetFile = async (targetFile: File) => {
+      try {
+        const isPdfTool =
+          toolId !== "word-to-pdf" &&
+          toolId !== "excel-to-pdf" &&
+          toolId !== "html-to-pdf" &&
+          toolId !== "images-to-pdf";
+        const cleanFile = isPdfTool ? await ensureValidPdfFile(targetFile) : targetFile;
+        setFile(cleanFile);
+        setError(null);
+        setResult(null);
+        if (toolId === "organize-pdf") {
+          loadOrganizeThumbnails(cleanFile);
+        } else if (toolId === "split-pdf" || toolId === "extract-pages") {
+          loadSplitThumbnails(cleanFile);
+        } else if (toolId === "remove-pages") {
+          loadRemoveThumbnails(cleanFile);
+        } else if (toolId === "ocr-pdf") {
+          loadOcrThumbnailsAndPreflight(cleanFile);
+        } else if (toolId === "edit-pdf") {
+          loadAnnotateThumbnail(cleanFile);
+        } else if (toolId === "add-watermark") {
+          loadWatermarkThumbnail(cleanFile);
+        } else if (toolId === "add-page-numbers") {
+          loadNumberThumbnails(cleanFile);
+        } else if (toolId === "redact-pdf") {
+          loadRedactThumbnail(cleanFile, 1);
+        }
+      } catch (err: any) {
+        setError(err?.message || "Failed to process incoming document file.");
       }
     };
 
@@ -1711,6 +1739,13 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
       } else {
         if (!file) throw new Error("Please select a document to process.");
 
+        const isPdfTool =
+          toolId !== "word-to-pdf" &&
+          toolId !== "excel-to-pdf" &&
+          toolId !== "html-to-pdf" &&
+          toolId !== "images-to-pdf";
+        const currentFile = isPdfTool ? await ensureValidPdfFile(file) : file;
+
         switch (toolId) {
           case "split-pdf":
           case "extract-pages": {
@@ -1746,7 +1781,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               };
             }
 
-            const res = await splitPdf(file, options);
+            const res = await splitPdf(currentFile, options);
             setResult({
               pdfBytes: res.pdfBytes,
               zipBlob: res.zipBlob,
@@ -1759,7 +1794,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "rotate-pdf": {
             setRotateProgress({ percent: 15, message: "Analyzing PDF page orientation..." });
-            const res = await rotatePdf(file, {
+            const res = await rotatePdf(currentFile, {
               angleDegrees: rotateAngle,
               pageScope: rotatePageScope,
               customPages: rotateCustomPages,
@@ -1787,7 +1822,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             const markedNums = removePagesList.filter((p) => p.markedForRemoval).map((p) => p.pageNum);
             const inputVal = markedNums.length > 0 ? markedNums : pagesToRemove;
 
-            const res = await removePagesFromPdf(file, {
+            const res = await removePagesFromPdf(currentFile, {
               pagesToRemove: inputVal,
               onProgress: (percent, message) => setRemoveProgress({ percent, message }),
             });
@@ -1807,10 +1842,10 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
                 pageIndex: p.origIndex,
                 rotation: p.rotation,
               }));
-              res = await organizePdfPages(file, targetItems);
+              res = await organizePdfPages(currentFile, targetItems);
             } else {
               const sequenceOrMode = organizeOrder === "custom" ? customPageSequence : organizeOrder;
-              res = await organizePdfPages(file, sequenceOrMode);
+              res = await organizePdfPages(currentFile, sequenceOrMode);
             }
             setResult({
               pdfBytes: res.pdfBytes,
@@ -1821,7 +1856,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "add-watermark": {
-            const res = await watermarkPdf(file, {
+            const res = await watermarkPdf(currentFile, {
               type: watermarkType,
               text: watermarkText,
               imageFile: watermarkImageFile || undefined,
@@ -1847,7 +1882,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "add-page-numbers": {
             setNumberProgress({ percent: 10, message: "Parsing PDF structure..." });
-            const res = await addPageNumbersToPdf(file, {
+            const res = await addPageNumbersToPdf(currentFile, {
               position: numberPosition,
               format: numberFormat,
               fontFamily: numberFont,
@@ -1879,7 +1914,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               cropPreset === "custom"
                 ? { top: cropTop, bottom: cropBottom, left: cropLeft, right: cropRight }
                 : undefined;
-            const res = await cropPdf(file, {
+            const res = await cropPdf(currentFile, {
               preset: cropPreset,
               marginPt: cropPreset !== "custom" ? cropMargin : undefined,
               margins,
@@ -1898,7 +1933,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "compress-pdf": {
             setCompressionProgress({ percent: 5, status: "Analyzing document streams..." });
-            const res = await compressPdf(file, {
+            const res = await compressPdf(currentFile, {
               level: compressionLevel,
               targetMaxKb: compressTargetKb > 0 ? compressTargetKb : undefined,
               forceRasterize,
@@ -1926,7 +1961,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "repair-pdf": {
             setRepairProgress({ percent: 15, message: "Scanning binary structure..." });
-            const res = await repairPdf(file, {
+            const res = await repairPdf(currentFile, {
               strategy: repairStrategy,
               onProgress: (percent, message) => setRepairProgress({ percent, message }),
             });
@@ -1961,7 +1996,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               return aiRes.success && aiRes.text ? aiRes.text : "";
             };
 
-            const auditRes = await auditPdfTextLayer(file, {
+            const auditRes = await auditPdfTextLayer(currentFile, {
               mode: ocrMode,
               pageRange: ocrPageRange,
               onProgress: (percent, message) => {
@@ -1973,7 +2008,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             if (ocrMode === "searchable_pdf") {
               setOcrProgress({ percent: 92, message: "Injecting searchable invisible text layer into PDF..." });
               const searchableRes = await createSearchablePdf(
-                file,
+                currentFile,
                 auditRes.pages.map((p) => p.fullText),
                 {
                   invisible: true,
@@ -2000,7 +2035,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               const reportText = ocrMode === "vision" ? auditRes.markdownReport : auditRes.fullText;
               setResult({
                 textContent: reportText,
-                fileName: `${file.name.replace(/\.[^/.]+$/, "")}_ocr_${ocrMode}.${ext}`,
+                fileName: `${currentFile.name.replace(/\.[^/.]+$/, "")}_ocr_${ocrMode}.${ext}`,
                 meta: `${auditRes.summary.documentClassification}: ${auditRes.summary.totalWords.toLocaleString()} words audited across ${auditRes.summary.totalPages} pages (${auditRes.summary.searchabilityScore}% searchability)`,
                 type: "text",
                 ocrStats: {
@@ -2015,7 +2050,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "word-to-pdf": {
             setWordToPdfProgress({ percent: 10, message: "Parsing Word document typography & layout..." });
-            const res = await convertWordToPdf(file, {
+            const res = await convertWordToPdf(currentFile, {
               pageSize: wordToPdfPageSize,
               margin: wordToPdfMargin,
               fontFamily: wordToPdfFont,
@@ -2033,7 +2068,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "excel-to-pdf": {
             setExcelProgress({ percent: 10, message: "Reading workbook sheets & computing gridlines..." });
-            const res = await convertExcelToPdf(file, {
+            const res = await convertExcelToPdf(currentFile, {
               orientation: excelOrientation,
               theme: excelTheme,
               showGridlines: excelShowGridlines,
@@ -2050,7 +2085,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "html-to-pdf": {
             setHtmlProgress({ percent: 10, message: "Parsing HTML markup & DOM structure..." });
-            const res = await convertHtmlToPdf(file, {
+            const res = await convertHtmlToPdf(currentFile, {
               pageSize: htmlPageSize,
               orientation: htmlOrientation,
               margin: htmlMargin,
@@ -2067,7 +2102,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-to-jpg": {
             setPdfToJpgProgress({ percent: 10, message: "Rasterizing PDF pages into high-resolution images..." });
-            const res = await convertPdfToJpg(file, {
+            const res = await convertPdfToJpg(currentFile, {
               scale: pdfToJpgDpi,
               format: pdfToJpgFormat,
               onProgress: (percent, message) => setPdfToJpgProgress({ percent, message }),
@@ -2084,7 +2119,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-to-word": {
             setWordProgress({ percent: 5, message: "Analyzing PDF text streams & layout..." });
-            const res = await convertPdfToWord(file, {
+            const res = await convertPdfToWord(currentFile, {
               layoutMode: wordLayoutMode,
               styleTheme: wordStyleTheme,
               includePageNumbers: wordIncludePageNumbers,
@@ -2108,7 +2143,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-to-excel": {
             setPdfToExcelProgress({ percent: 10, message: "Parsing PDF document & extracting text streams..." });
-            const res = await convertPdfToExcel(file, {
+            const res = await convertPdfToExcel(currentFile, {
               includePageColumn: pdfToExcelIncludePage,
               onProgress: (percent, message) => setPdfToExcelProgress({ percent, message }),
             });
@@ -2123,7 +2158,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-to-pdfa": {
             setPdfaProgress({ percent: 15, message: "Reading PDF catalog & object tree..." });
-            const res = await convertPdfToPdfA(file, {
+            const res = await convertPdfToPdfA(currentFile, {
               conformanceLevel: pdfaLevel,
               colorProfile: pdfaColorProfile,
               onProgress: (percent, message) => setPdfaProgress({ percent, message }),
@@ -2139,7 +2174,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-to-powerpoint": {
             setSlidesProgress({ percent: 10, message: "Rasterizing presentation slides..." });
-            const res = await convertPdfToJpg(file, {
+            const res = await convertPdfToJpg(currentFile, {
               scale: slidesDpi,
               format: slidesFormat,
               onProgress: (percent, message) => setSlidesProgress({ percent, message }),
@@ -2147,7 +2182,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             setResult({
               zipBlob: res.zipBlob,
               images: res.images,
-              fileName: `${file.name.replace(/\.[^/.]+$/, "")}_slides.zip`,
+              fileName: `${currentFile.name.replace(/\.[^/.]+$/, "")}_slides.zip`,
               meta: `Extracted ${res.totalPages} slides into ${slidesDpi === 2.0 ? "300 DPI Ultra HD" : slidesDpi === 1.5 ? "150 DPI Crisp" : "96 DPI"} presentation package (${slidesFormat.toUpperCase()} ZIP)`,
               type: "zip",
             });
@@ -2155,7 +2190,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "edit-pdf": {
-            const res = await annotatePdf(file, {
+            const res = await annotatePdf(currentFile, {
               text: annotationText,
               subtitle: annotationSubtitle,
               position: annotationPosition,
@@ -2181,7 +2216,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "pdf-forms": {
             setFormProgress({ percent: 15, message: "Inspecting AcroForm widgets & field dictionary..." });
-            const res = await inspectAndFlattenPdfForms(file, {
+            const res = await inspectAndFlattenPdfForms(currentFile, {
               action: formAction,
               onProgress: (percent, message) => setFormProgress({ percent, message }),
             });
@@ -2197,7 +2232,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "protect-pdf": {
             setProtectProgress({ percent: 15, message: "Preparing cryptographic envelope..." });
-            const res = await protectPdf(file, {
+            const res = await protectPdf(currentFile, {
               userPassword,
               algorithm: protectAlgorithm,
               onProgress: (percent, message) => setProtectProgress({ percent, message }),
@@ -2213,7 +2248,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "unlock-pdf": {
             setUnlockProgress({ percent: 15, message: "Decrypting document streams..." });
-            const res = await unlockPdf(file, {
+            const res = await unlockPdf(currentFile, {
               password: unlockPassword,
               onProgress: (percent, message) => setUnlockProgress({ percent, message }),
             });
@@ -2239,7 +2274,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               throw new Error("Please upload your signature image first, or switch to Draw / Type.");
             }
 
-            const res = await signPdf(file, {
+            const res = await signPdf(currentFile, {
               signerName: signStudioConfig.signerName,
               signerTitle: signStudioConfig.signerTitle,
               signerReason: signStudioConfig.signerReason,
@@ -2265,7 +2300,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "redact-pdf": {
-            const res = await redactPdf(file, {
+            const res = await redactPdf(currentFile, {
               targetMode: redactMode,
               searchTerm: redactMode === "keyword" ? redactSearchTerm : undefined,
               piiCategories: redactMode === "smart_pii" ? redactPiiCategories : undefined,
@@ -2290,7 +2325,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           case "ai-summarizer": {
-            const { text, pages } = await extractTextFromPdf(file);
+            const { text, pages } = await extractTextFromPdf(currentFile);
             const wordCount = text.split(/\s+/).filter(Boolean).length;
             const tokenEst = Math.round(wordCount * 1.33);
             const readingTime = Math.max(1, Math.ceil(wordCount / 200));
@@ -2299,11 +2334,11 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             try {
               const aiRes = await callGeminiAi({ task: "summarize", text });
               if (aiRes.success && aiRes.text) {
-                const fullReport = `${aiRes.text}\n\n---\n### 📊 Document Metadata (Gemini 2.5 Flash Analyzed)\n- **Source File**: \`${file.name}\`\n- **Document Scope**: ${pages.length} page(s)\n- **Estimated Tokens**: ~${tokenEst.toLocaleString()} tokens\n- **Estimated Reading Time**: ~${readingTime} minute(s)\n- **AI Model**: \`Google Gemini 2.5 Flash\``;
+                const fullReport = `${aiRes.text}\n\n---\n### 📊 Document Metadata (Gemini 2.5 Flash Analyzed)\n- **Source File**: \`${currentFile.name}\`\n- **Document Scope**: ${pages.length} page(s)\n- **Estimated Tokens**: ~${tokenEst.toLocaleString()} tokens\n- **Estimated Reading Time**: ~${readingTime} minute(s)\n- **AI Model**: \`Google Gemini 2.5 Flash\``;
 
                 setResult({
                   textContent: fullReport,
-                  fileName: `${file.name.replace(/\.[^/.]+$/, "")}_gemini_executive_summary.md`,
+                  fileName: `${currentFile.name.replace(/\.[^/.]+$/, "")}_gemini_executive_summary.md`,
                   meta: `Generated executive AI synthesis with Google Gemini 2.5 Flash (~${tokenEst.toLocaleString()} tokens)`,
                   type: "text",
                 });
@@ -2313,12 +2348,12 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               // Fallback to client-side extractive NLP
             }
 
-            const res = await aiSummarizePdf(file);
-            const report = `# AI Document Summary: ${file.name}\n\n${res.summary}\n\n## Key Salient Findings (NLP Ranked)\n${res.keyTakeaways.map((t, idx) => `${idx + 1}. ${t}`).join("\n\n")}\n\n## Primary Themes & Keywords\n${res.topKeywords?.map((k) => `\`${k}\``).join(" • ") || "General Content"}\n\n- **Reading Time**: ~${res.readingTimeMinutes} min\n- **Token Volume**: ~${res.tokenCount.toLocaleString()} estimated tokens\n- **Analyzed Scope**: ${res.totalPages} page(s) in browser memory`;
+            const res = await aiSummarizePdf(currentFile);
+            const report = `# AI Document Summary: ${currentFile.name}\n\n${res.summary}\n\n## Key Salient Findings (NLP Ranked)\n${res.keyTakeaways.map((t, idx) => `${idx + 1}. ${t}`).join("\n\n")}\n\n## Primary Themes & Keywords\n${res.topKeywords?.map((k) => `\`${k}\``).join(" • ") || "General Content"}\n\n- **Reading Time**: ~${res.readingTimeMinutes} min\n- **Token Volume**: ~${res.tokenCount.toLocaleString()} estimated tokens\n- **Analyzed Scope**: ${res.totalPages} page(s) in browser memory`;
             setResult({
               summaryData: res,
               textContent: report,
-              fileName: `${file.name.replace(/\.[^/.]+$/, "")}_ai_summary.md`,
+              fileName: `${currentFile.name.replace(/\.[^/.]+$/, "")}_ai_summary.md`,
               meta: `Analyzed ${res.totalPages} pages with NLP salience ranking (${res.tokenCount.toLocaleString()} tokens)`,
               type: "text",
             });
@@ -2326,7 +2361,7 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
           }
           case "translate-pdf": {
             setTranslateProgress({ percent: 10, message: "Extracting document text & layout structure..." });
-            const res = await translatePdfLayout(file, {
+            const res = await translatePdfLayout(currentFile, {
               targetLanguage,
               layoutMode: translateLayoutMode,
               includeBilingualPdf: translateIncludePdf,
@@ -2337,8 +2372,8 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               pdfBytes: res.pdfBytes,
               textContent: res.markdownContent,
               fileName: res.pdfBytes
-                ? `${file.name.replace(/\.[^/.]+$/, "")}_${targetLanguage.toLowerCase()}_bilingual.pdf`
-                : `${file.name.replace(/\.[^/.]+$/, "")}_${targetLanguage.toLowerCase()}_bilingual.md`,
+                ? `${currentFile.name.replace(/\.[^/.]+$/, "")}_${targetLanguage.toLowerCase()}_bilingual.pdf`
+                : `${currentFile.name.replace(/\.[^/.]+$/, "")}_${targetLanguage.toLowerCase()}_bilingual.md`,
               meta: `${res.summary} (100% In-Browser Memory)`,
               type: res.pdfBytes ? "pdf" : "text",
               translateStats: res,
@@ -2347,10 +2382,10 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
             break;
           }
           default: {
-            const res = await splitPdf(file, "1-999");
+            const res = await splitPdf(currentFile, "1-999");
             setResult({
               pdfBytes: res.pdfBytes,
-              fileName: `${file.name.replace(/\.[^/.]+$/, "")}_processed.pdf`,
+              fileName: `${currentFile.name.replace(/\.[^/.]+$/, "")}_processed.pdf`,
               meta: `Processed ${res.pageCount} page(s) successfully`,
               type: "pdf",
             });

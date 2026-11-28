@@ -1,4 +1,5 @@
 import { PDFDocument, degrees } from "pdf-lib";
+import { ensureCleanPdfBytes } from "../common/safe-pdf-loader.ts";
 
 export interface PageOrganizeItem {
   pageIndex: number; // 0-based source page index, or -1 for blank page
@@ -22,8 +23,8 @@ export async function organizePdfPages(
   file: File,
   pageOrderOrMode: OrganizeOrderParam = "reverse"
 ): Promise<{ pdfBytes: Uint8Array; fileName: string; pageCount: number }> {
-  const buffer = await file.arrayBuffer();
-  const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const { bytes } = await ensureCleanPdfBytes(file, file.name);
+  const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const total = srcDoc.getPageCount();
 
   let targetItems: PageOrganizeItem[] = [];

@@ -1,4 +1,5 @@
 import { PDFDocument } from "pdf-lib";
+import { ensureCleanPdfBytes } from "../common/safe-pdf-loader.ts";
 
 export type SplitMode = "range" | "extract_all" | "split_every" | "multi_range";
 
@@ -117,9 +118,8 @@ export async function splitPdf(
   const onProgress = options.onProgress;
   onProgress?.(5, "Loading source PDF document...");
 
-  const buffer = await file.arrayBuffer();
-  // Safe array buffer copy to prevent detached buffer issues
-  const srcDoc = await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true });
+  const { bytes } = await ensureCleanPdfBytes(file, file.name);
+  const srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
   const total = srcDoc.getPageCount();
 
   if (total === 0) {

@@ -214,6 +214,10 @@ export function VideoDownloaderTool({ isPro, onOpenPricing }: VideoDownloaderToo
         }
       }
 
+      if (receivedBytes === 0) {
+        throw new Error("No media data was received from the stream. Please try another quality or format.");
+      }
+
       setDownloadProgress("Assembling file and saving to disk...");
       setDownloadPercentage(100);
 

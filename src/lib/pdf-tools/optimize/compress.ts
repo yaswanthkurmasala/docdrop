@@ -1,5 +1,6 @@
 import { PDFDocument, PDFName, PDFNumber, PDFRawStream } from "pdf-lib";
 import { loadPdfJs } from "../common/pdfjs-loader.ts";
+import { ensureCleanPdfBytes, findPdfHeaderOffset } from "../common/safe-pdf-loader.ts";
 
 export type CompressionLevel = "recommended" | "extreme" | "light" | "target" | "custom";
 
@@ -204,7 +205,11 @@ async function optimizeEmbeddedImages(
  * prunes unused dictionary keys, and repacks objects into cross-reference streams.
  */
 async function compressStructural(bytes: Uint8Array): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.load(bytes.slice(), {
+  let cleanBytes = bytes;
+  const offset = findPdfHeaderOffset(bytes);
+  if (offset > 0) cleanBytes = bytes.subarray(offset);
+
+  const pdfDoc = await PDFDocument.load(cleanBytes.slice(), {
     ignoreEncryption: true,
     updateMetadata: false,
   });
@@ -342,9 +347,7 @@ export async function compressPdf(
 ): Promise<CompressResult> {
   const level: CompressionLevel = options.level || "recommended";
   const originalSize = file.size;
-  const rawArrayBuffer = await file.arrayBuffer();
-  // Safe un-detachable master copy
-  const originalBytes = new Uint8Array(rawArrayBuffer);
+  const { bytes: originalBytes } = await ensureCleanPdfBytes(file, file.name);
   const baseName = file.name.replace(/\.[^/.]+$/, "");
 
   let compressedBytes: Uint8Array | null = null;

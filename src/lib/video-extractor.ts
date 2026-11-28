@@ -429,11 +429,12 @@ export async function createDownloadStream(
         "python",
         [
           "-m", "yt_dlp",
+          "--js-runtimes", "node",
           "--ffmpeg-location", ffmpegBinary,
           "--no-warnings",
           "-f", "bestaudio[ext=m4a]/bestaudio/best",
           "-o", "-",
-          videoUrl,
+          videoUrl.trim(),
         ],
         { stdio: ["ignore", "pipe", "pipe"] }
       );
@@ -444,10 +445,12 @@ export async function createDownloadStream(
           "-i", "pipe:0",
           "-map", "0:a:0?",
           "-vn",
+          "-map_metadata", "-1",
           "-acodec", "libmp3lame",
           "-b:a", bitrate,
           "-ar", "44100",
           "-ac", "2",
+          "-write_xing", "1",
           "-id3v2_version", "3",
           "-f", "mp3",
           "pipe:1",
@@ -517,11 +520,12 @@ export async function createDownloadStream(
         "python",
         [
           "-m", "yt_dlp",
+          "--js-runtimes", "node",
           "--ffmpeg-location", ffmpegBinary,
           "--no-warnings",
           "-f", formatSpec,
           "-o", "-",
-          videoUrl,
+          videoUrl.trim(),
         ],
         { stdio: ["ignore", "pipe", "pipe"] }
       );
@@ -533,6 +537,7 @@ export async function createDownloadStream(
           "-i", "pipe:0",
           "-map", "0:v:0?",
           "-map", "0:a:0?",
+          "-map_metadata", "-1",
           "-c:v", "copy",
           "-c:a", "aac",
           "-movflags", "frag_keyframe+empty_moov+default_base_moof",
