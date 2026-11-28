@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import confetti from "canvas-confetti";
 import {
@@ -18,8 +18,11 @@ import {
   RefreshCw,
   CheckCircle2,
   Laptop,
+  Wifi,
+  ExternalLink,
+  Edit2,
 } from "lucide-react";
-import { generateQrSvg } from "@/lib/qr-code";
+import { generateQrDataUrl } from "@/lib/qr-code";
 import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
 
 interface PhoneTransferModalProps {
@@ -40,30 +43,82 @@ export function PhoneTransferModal({
   const [pinCode, setPinCode] = useState<string>("");
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [transferStatus, setTransferStatus] = useState<"waiting" | "connected" | "done">("waiting");
-  const [qrSvg, setQrSvg] = useState<string>("");
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [isGeneratingQr, setIsGeneratingQr] = useState<boolean>(true);
+  const [effectiveOrigin, setEffectiveOrigin] = useState<string>("");
+  const [isEditingOrigin, setIsEditingOrigin] = useState<boolean>(false);
+  const [customOriginInput, setCustomOriginInput] = useState<string>("");
+  const [receivedFile, setReceivedFile] = useState<File | null>(null);
+
+  // Initialize room, PIN, and detect LAN Wi-Fi IP for seamless local phone scanning
+  const initTransferSession = useCallback(async () => {
+    setIsGeneratingQr(true);
+    const room = "drop-" + Math.random().toString(36).substring(2, 8);
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    setRoomId(room);
+    setPinCode(pin);
+
+    let baseOrigin = typeof window !== "undefined" ? window.location.origin : "https://docdrop.com";
+
+    // If running on local computer, query local LAN Wi-Fi IPv4 so phone on Wi-Fi can reach it!
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      try {
+        const res = await fetch("/api/p2p/network-ip");
+        const data = await res.json();
+        if (data.ip && data.ip !== "127.0.0.1") {
+          const port = window.location.port ? `:${window.location.port}` : "";
+          baseOrigin = `http://${data.ip}${port}`;
+        }
+      } catch (err) {
+        console.warn("[P2P] Network IP auto-detection fallback:", err);
+      }
+    }
+
+    setEffectiveOrigin(baseOrigin);
+    setCustomOriginInput(baseOrigin);
+
+    const targetUrl = `${baseOrigin}/?room=${room}&pin=${pin}#p2p-transfer`;
+    try {
+      const dataUrl = await generateQrDataUrl(targetUrl, 280);
+      setQrDataUrl(dataUrl);
+    } catch (err) {
+      console.error("[P2P] QR generation error:", err);
+    } finally {
+      setIsGeneratingQr(false);
+      setTransferStatus("waiting");
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
-      // Generate clean room code & 6-digit PIN
-      const room = "drop-" + Math.random().toString(36).substring(2, 8);
-      const pin = Math.floor(100000 + Math.random() * 900000).toString();
-      setRoomId(room);
-      setPinCode(pin);
-
-      const targetUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/?room=${room}&pin=${pin}#p2p-transfer`
-          : `https://docdrop.com/?room=${room}`;
-
-      const svg = generateQrSvg(targetUrl, 220);
-      setQrSvg(svg);
-      setTransferStatus("waiting");
+      initTransferSession();
     }
-  }, [isOpen]);
+  }, [isOpen, initTransferSession]);
+
+  // Re-generate QR when user customizes origin
+  const handleApplyCustomOrigin = async () => {
+    if (!customOriginInput.trim()) return;
+    setIsGeneratingQr(true);
+    setEffectiveOrigin(customOriginInput.trim());
+    setIsEditingOrigin(false);
+
+    const targetUrl = `${customOriginInput.trim()}/?room=${roomId}&pin=${pinCode}#p2p-transfer`;
+    try {
+      const dataUrl = await generateQrDataUrl(targetUrl, 280);
+      setQrDataUrl(dataUrl);
+    } catch (err) {
+      console.error("[P2P] QR generation error:", err);
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const getFullPairingUrl = () => {
+    return `${effectiveOrigin}/?room=${roomId}&pin=${pinCode}#p2p-transfer`;
+  };
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/?room=${roomId}&pin=${pinCode}`;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(getFullPairingUrl());
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
@@ -73,8 +128,8 @@ export function PhoneTransferModal({
       try {
         await navigator.share({
           title: "DocDrop Document Transfer",
-          text: `Transferring ${currentFile ? currentFile.name : "document"} securely via DocDrop`,
-          url: `${window.location.origin}/?room=${roomId}`,
+          text: `Connect and transfer files directly via DocDrop (PIN: ${pinCode})`,
+          url: getFullPairingUrl(),
         });
       } catch (err) {
         console.debug("Share dismissed", err);
@@ -84,7 +139,7 @@ export function PhoneTransferModal({
     }
   };
 
-  // Simulate instant P2P handoff confirmation
+  // Simulate local Wi-Fi handoff or upload directly
   const handleSimulateHandoff = () => {
     setTransferStatus("connected");
     setTimeout(() => {
@@ -92,7 +147,22 @@ export function PhoneTransferModal({
       try {
         confetti({ particleCount: 50, spread: 70, origin: { y: 0.7 } });
       } catch {}
-    }, 1200);
+    }, 1000);
+  };
+
+  // Test mobile file upload simulation
+  const handleManualUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const f = e.target.files[0];
+      setReceivedFile(f);
+      setTransferStatus("done");
+      setChainedDocument(f);
+      if (onReceiveFile) onReceiveFile(f);
+
+      try {
+        confetti({ particleCount: 60, spread: 80, origin: { y: 0.7 } });
+      } catch {}
+    }
   };
 
   return (
@@ -127,7 +197,7 @@ export function PhoneTransferModal({
                     Drop to Phone (P2P Transfer)
                   </h3>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    Pass documents directly to your mobile phone with zero cloud storage.
+                    Scan with any smartphone camera to connect with zero cloud storage.
                   </p>
                 </div>
               </div>
@@ -182,12 +252,12 @@ export function PhoneTransferModal({
                           {currentFile.name}
                         </p>
                         <p className="text-[11px] font-mono text-zinc-400">
-                          {(currentFile.size / (1024 * 1024)).toFixed(2)} MB
+                          {(currentFile.size / (1024 * 1024)).toFixed(2)} MB • Ready in RAM
                         </p>
                       </div>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono">
-                      Ready in RAM
+                      In-Memory
                     </span>
                   </div>
                 ) : (
@@ -196,37 +266,92 @@ export function PhoneTransferModal({
                   </div>
                 )}
 
-                {/* QR Code Container */}
+                {/* ISO/IEC 18004 Standard QR Code Display */}
                 <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
-                  <div className="w-52 h-52 p-3 rounded-2xl bg-white text-zinc-950 border border-zinc-200 shadow-inner flex items-center justify-center">
-                    <div
-                      dangerouslySetInnerHTML={{ __html: qrSvg }}
-                      className="w-full h-full text-zinc-950 flex items-center justify-center"
-                    />
+                  <div className="w-60 h-60 p-3 rounded-2xl bg-white border border-zinc-200 shadow-md flex items-center justify-center relative">
+                    {isGeneratingQr ? (
+                      <div className="flex flex-col items-center gap-2 text-zinc-400">
+                        <RefreshCw className="w-6 h-6 animate-spin text-amber-500" />
+                        <span className="text-xs font-mono">Generating QR...</span>
+                      </div>
+                    ) : qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt="Scan QR Code with Phone"
+                        className="w-full h-full object-contain [image-rendering:pixelated]"
+                      />
+                    ) : (
+                      <div className="text-xs text-rose-500 font-mono">Failed to render QR</div>
+                    )}
                   </div>
 
                   <div className="text-center space-y-1">
-                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                      Scan with your phone&apos;s camera
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Point your phone camera to scan</span>
                     </p>
-                    <p className="text-[11px] font-mono text-zinc-400">
-                      Pairing PIN: <strong className="text-amber-500 font-bold">{pinCode}</strong>
+                    <p className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+                      Pairing PIN: <strong className="text-amber-500 font-bold tracking-wider">{pinCode}</strong>
                     </p>
                   </div>
                 </div>
 
-                {/* Status Bar */}
+                {/* Local Network Info & Customization */}
+                <div className="p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200/70 dark:border-zinc-800 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-500 flex items-center gap-1 font-semibold">
+                      <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Target Network URL:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingOrigin(!isEditingOrigin)}
+                      className="text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer font-bold"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>{isEditingOrigin ? "Cancel" : "Change IP / Host"}</span>
+                    </button>
+                  </div>
+
+                  {isEditingOrigin ? (
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={customOriginInput}
+                        onChange={(e) => setCustomOriginInput(e.target.value)}
+                        placeholder="e.g. http://192.168.1.50:3000"
+                        className="flex-1 px-3 py-1.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs font-mono text-zinc-900 dark:text-zinc-100 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCustomOrigin}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-mono text-zinc-600 dark:text-zinc-400 truncate">
+                      {getFullPairingUrl()}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-zinc-400 italic">
+                    Tip: Make sure your phone and laptop are connected to the same Wi-Fi router.
+                  </p>
+                </div>
+
+                {/* Actions Footer */}
                 <div className="flex items-center justify-between text-xs pt-1">
                   <div className="flex items-center gap-1.5 text-zinc-500">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>Direct WebRTC Local Channel</span>
+                    <span>ISO/IEC 18004 Standard QR</span>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleCopyLink}
-                      className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                      className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
                     >
                       {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{isCopied ? "Copied!" : "Copy Link"}</span>
@@ -235,7 +360,7 @@ export function PhoneTransferModal({
                     <button
                       type="button"
                       onClick={handleNativeShare}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
                     >
                       <Share2 className="w-3.5 h-3.5" />
                       <span>Share</span>
@@ -254,21 +379,26 @@ export function PhoneTransferModal({
                     <span>Camera Scan to Laptop Transfer</span>
                   </p>
                   <p className="text-[11px] opacity-90">
-                    Snap a photo of any printed contract or notes on your phone and beam it straight to your laptop studio.
+                    Scan the QR code with your phone to upload photos, scanned documents, or PDFs straight into your laptop studio memory.
                   </p>
                 </div>
 
                 {/* QR Code Container */}
                 <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800 space-y-3">
-                  <div className="w-48 h-48 p-3 rounded-2xl bg-white text-zinc-950 border border-zinc-200 shadow-inner flex items-center justify-center">
-                    <div
-                      dangerouslySetInnerHTML={{ __html: qrSvg }}
-                      className="w-full h-full text-zinc-950 flex items-center justify-center"
-                    />
+                  <div className="w-56 h-56 p-3 rounded-2xl bg-white border border-zinc-200 shadow-md flex items-center justify-center">
+                    {qrDataUrl ? (
+                      <img
+                        src={qrDataUrl}
+                        alt="Scan QR to Upload"
+                        className="w-full h-full object-contain [image-rendering:pixelated]"
+                      />
+                    ) : (
+                      <RefreshCw className="w-6 h-6 animate-spin text-amber-500" />
+                    )}
                   </div>
 
                   <div className="text-center space-y-1">
-                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                       Scan to open Phone Uploader
                     </p>
                     <p className="text-[11px] font-mono text-zinc-400">
@@ -277,19 +407,38 @@ export function PhoneTransferModal({
                   </div>
                 </div>
 
-                {/* Handoff Test Trigger */}
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-xs text-zinc-400 font-mono">
-                    Status: {transferStatus === "waiting" ? "Waiting for mobile..." : "Transferring..."}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleSimulateHandoff}
-                    className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300 text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    Test Local Handoff
-                  </button>
+                {/* Direct Upload Simulator / Fallback */}
+                <div className="p-4 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950/40 text-center space-y-2">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Testing on same machine or want to select a file directly?
+                  </p>
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-bold cursor-pointer hover:opacity-90 transition-opacity">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Pick File or Camera Photo</span>
+                    <input
+                      type="file"
+                      accept=".pdf,image/*,.docx"
+                      onChange={handleManualUpload}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
+
+                {receivedFile && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      Received {receivedFile.name} ({(receivedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs"
+                    >
+                      Open in Studio
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>
