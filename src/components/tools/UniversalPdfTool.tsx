@@ -55,6 +55,7 @@ import {
   Globe,
   X,
   Smartphone,
+  LayoutGrid,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
@@ -353,7 +354,7 @@ const PIPELINE_CHAIN_TOOLS = [
   { id: "sign-pdf", name: "Sign PDF", desc: "Stamp certified signatures", icon: Stamp },
   { id: "protect-pdf", name: "Protect PDF", desc: "Lock with 256-bit AES encryption", icon: Lock },
   { id: "add-watermark", name: "Add Watermark", desc: "Stamp custom text or logo", icon: Stamp },
-  { id: "organize-pdf", name: "Organize Pages", desc: "Reorder & duplicate pages", icon: Layers },
+  { id: "organize-pdf", name: "Organize Pages", desc: "Reorder & duplicate pages", icon: LayoutGrid },
 ];
 
 export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfToolProps) {

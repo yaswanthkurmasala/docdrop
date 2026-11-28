@@ -16,7 +16,7 @@ import { Footer } from "@/components/Footer";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon, Search, Video } from "lucide-react";
+import { Sparkles, Layers, Scissors, Zap, RotateCw, Image as ImageIcon, Search, Video, LayoutGrid, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { TOOLS_REGISTRY } from "@/lib/tools-registry";
@@ -250,8 +250,8 @@ export function DocDropStudio({
           <h2 className="sr-only">Document Workbench &amp; Active Instrument</h2>
 
           {/* Refined Dock-Style Tool Switcher: Tightly shrink-wrapped, centered, with ambient blur light glow */}
-          <div className="w-full flex items-center justify-center py-1 mb-8 overflow-x-auto no-scrollbar px-2 sm:px-4">
-            <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-2xl bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-zinc-200/90 dark:border-zinc-800 shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] shrink-0 mx-auto">
+          <div className="w-full flex items-center justify-start xl:justify-center py-2 mb-8 overflow-x-auto no-scrollbar px-2 sm:px-4">
+            <div className="relative inline-flex items-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 rounded-2xl bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/90 dark:border-zinc-800 shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_28px_rgba(0,0,0,0.35)] shrink-0 mx-auto">
               {/* Subtle ambient light blur behind dock */}
               <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-indigo-500/15 rounded-2xl blur-md opacity-60 pointer-events-none -z-10" />
 
@@ -260,49 +260,49 @@ export function DocDropStudio({
                   id: "pdf-to-markdown",
                   label: "PDF to Markdown",
                   icon: Sparkles,
-                  iconColor: "text-zinc-900 dark:text-zinc-100",
+                  iconColor: "text-amber-500 dark:text-amber-400",
                 },
                 {
                   id: "merge-pdf",
                   label: "Merge PDF",
                   icon: Layers,
-                  iconColor: "text-zinc-700 dark:text-zinc-300",
-                },
-                {
-                  id: "organize-pdf",
-                  label: "Organize Pages",
-                  icon: Layers,
-                  iconColor: "text-rose-600 dark:text-rose-400",
+                  iconColor: "text-indigo-500 dark:text-indigo-400",
                 },
                 {
                   id: "split-pdf",
                   label: "Split PDF",
                   icon: Scissors,
-                  iconColor: "text-zinc-700 dark:text-zinc-300",
+                  iconColor: "text-sky-500 dark:text-sky-400",
+                },
+                {
+                  id: "organize-pdf",
+                  label: "Organize Pages",
+                  icon: LayoutGrid,
+                  iconColor: "text-rose-500 dark:text-rose-400",
                 },
                 {
                   id: "rotate-pdf",
                   label: "Rotate PDF",
                   icon: RotateCw,
-                  iconColor: "text-zinc-700 dark:text-zinc-300",
+                  iconColor: "text-emerald-500 dark:text-emerald-400",
                 },
                 {
                   id: "compress-pdf",
                   label: "Compress PDF",
                   icon: Zap,
-                  iconColor: "text-zinc-700 dark:text-zinc-300",
+                  iconColor: "text-amber-500 dark:text-amber-400",
                 },
                 {
                   id: "jpg-to-pdf",
                   label: "JPG to PDF",
                   icon: ImageIcon,
-                  iconColor: "text-zinc-700 dark:text-zinc-300",
+                  iconColor: "text-blue-500 dark:text-blue-400",
                 },
                 {
                   id: "video-downloader",
                   label: "Video Downloader",
                   icon: Video,
-                  iconColor: "text-violet-600 dark:text-violet-400",
+                  iconColor: "text-violet-500 dark:text-violet-400",
                 },
               ].map((tool) => {
                 const Icon = tool.icon;
@@ -312,60 +312,62 @@ export function DocDropStudio({
                   <button
                     key={tool.id}
                     onClick={() => setActiveToolId(tool.id)}
-                    className={`relative z-10 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap min-h-[38px] ${
+                    className={`relative z-10 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap min-h-[36px] ${
                       isActive
-                        ? "text-white dark:text-zinc-950 font-bold"
-                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60"
+                        ? "text-zinc-950 dark:text-zinc-950 font-bold"
+                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60"
                     }`}
                   >
                     {isActive && (
                       <motion.div
                         layoutId="activeDockPill"
                         transition={motionTokens.spring.snappy}
-                        className="absolute inset-0 bg-zinc-950 dark:bg-white rounded-xl shadow-xs -z-10"
+                        className="absolute inset-0 bg-white dark:bg-white rounded-xl shadow-xs border border-zinc-200/60 dark:border-white/20 -z-10"
                       />
                     )}
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? "text-zinc-950" : tool.iconColor}`} />
                     <span>{tool.label}</span>
                   </button>
                 );
               })}
 
               {!isPresetDock && activeDef && (
-                <button className="relative z-10 px-3.5 py-2 rounded-xl text-xs font-bold text-white dark:text-zinc-950 flex items-center gap-2 whitespace-nowrap min-h-[38px]">
+                <button className="relative z-10 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-zinc-950 dark:text-zinc-950 flex items-center gap-2 whitespace-nowrap min-h-[36px]">
                   <motion.div
                     layoutId="activeDockPill"
                     transition={motionTokens.spring.snappy}
-                    className="absolute inset-0 bg-zinc-950 dark:bg-white rounded-xl shadow-xs -z-10"
+                    className="absolute inset-0 bg-white dark:bg-white rounded-xl shadow-xs border border-zinc-200/60 dark:border-white/20 -z-10"
                   />
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   <span>{activeDef.name}</span>
                 </button>
               )}
 
-              <div className="h-4 w-px bg-zinc-200/80 dark:bg-zinc-800 mx-0.5 shrink-0" aria-hidden="true" />
+              <div className="h-4 w-px bg-zinc-200/80 dark:bg-zinc-800 mx-1 shrink-0" aria-hidden="true" />
 
               <button
                 type="button"
                 onClick={() => setIsCommandPaletteOpen(true)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap min-h-[38px]"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap min-h-[36px] shrink-0"
                 title="Search and jump to any tool (⌘K / Ctrl+K)"
               >
-                <Search className="w-3.5 h-3.5 text-zinc-400" />
+                <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                 <span className="hidden sm:inline">Jump</span>
-                <kbd className="px-1 py-0.2 rounded bg-zinc-200/80 dark:bg-zinc-800 text-[9px] font-mono text-zinc-500">
+                <kbd className="px-1 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-800 text-[9px] font-mono text-zinc-500 dark:text-zinc-400">
                   ⌘K
                 </kbd>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   const el = document.getElementById("all-tools");
                   el?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer whitespace-nowrap min-h-[38px]"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 transition-colors cursor-pointer whitespace-nowrap min-h-[36px] flex items-center gap-1 shrink-0"
               >
-                All Tools &darr;
+                <span>All Tools</span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
               </button>
             </div>
           </div>

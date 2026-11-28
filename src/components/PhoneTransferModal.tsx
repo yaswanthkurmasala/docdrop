@@ -31,6 +31,7 @@ import {
   FileSpreadsheet,
   ScanText,
   Sparkles,
+  LayoutGrid,
 } from "lucide-react";
 import { generateQrDataUrl } from "@/lib/qr-code";
 import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
@@ -48,7 +49,7 @@ export const POPULAR_P2P_TOOLS = [
     id: "organize-pages",
     name: "Visual Page Organizer",
     desc: "Reorder, rotate, split, or delete pages",
-    icon: Layers,
+    icon: LayoutGrid,
     color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
   },
   {
