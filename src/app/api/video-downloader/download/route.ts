@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing 'url' query parameter" }, { status: 400 });
     }
 
-    const cleanBase = sanitizeFileName(rawFileName.replace(/\.[^/.]+$/, ""));
+    const cleanBase = sanitizeFileName(rawFileName.replace(/\.[^/.]+$/, "")) || "downloaded_media";
 
     const { stream, contentType, fileExt } = await createDownloadStream(
       videoUrl,
@@ -23,11 +23,12 @@ export async function GET(req: NextRequest) {
     );
 
     const finalFileName = `${cleanBase}.${fileExt}`;
+    const safeAsciiName = finalFileName.replace(/[^\x20-\x7E]/g, "_").replace(/"/g, "");
 
     return new Response(stream as any, {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(finalFileName)}"; filename*=UTF-8''${encodeURIComponent(finalFileName)}`,
+        "Content-Disposition": `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodeURIComponent(finalFileName)}`,
         "Accept-Ranges": "bytes",
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",

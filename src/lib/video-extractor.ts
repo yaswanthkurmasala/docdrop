@@ -427,17 +427,50 @@ export async function createDownloadStream(
 
       const ytdlProc = spawn(
         "python",
-        ["-m", "yt_dlp", "--js-runtimes", "node", "--no-warnings", "-f", "bestaudio/best", "-o", "-", videoUrl],
+        [
+          "-m", "yt_dlp",
+          "--ffmpeg-location", ffmpegBinary,
+          "--no-warnings",
+          "-f", "bestaudio[ext=m4a]/bestaudio/best",
+          "-o", "-",
+          videoUrl,
+        ],
         { stdio: ["ignore", "pipe", "pipe"] }
       );
 
       const ffmpegProc = spawn(
         ffmpegBinary,
-        ["-i", "pipe:0", "-vn", "-acodec", "libmp3lame", "-b:a", bitrate, "-f", "mp3", "pipe:1"],
+        [
+          "-i", "pipe:0",
+          "-map", "0:a:0?",
+          "-vn",
+          "-acodec", "libmp3lame",
+          "-b:a", bitrate,
+          "-ar", "44100",
+          "-ac", "2",
+          "-id3v2_version", "3",
+          "-f", "mp3",
+          "pipe:1",
+        ],
         { stdio: ["pipe", "pipe", "pipe"] }
       );
 
+      // Prevent pipe deadlocks by actively draining stderr
+      ytdlProc.stderr.on("data", (chunk) => {
+        const msg = chunk.toString();
+        if (msg.includes("ERROR:")) console.warn("[yt-dlp audio error]:", msg.trim());
+      });
+      ytdlProc.stderr.resume();
+
+      ffmpegProc.stderr.on("data", (chunk) => {
+        const msg = chunk.toString();
+        if (msg.includes("Error") || msg.includes("error")) console.warn("[ffmpeg audio error]:", msg.trim());
+      });
+      ffmpegProc.stderr.resume();
+
       ytdlProc.stdout.pipe(ffmpegProc.stdin);
+      ytdlProc.stdout.on("error", () => {});
+      ffmpegProc.stdin.on("error", () => {});
 
       const cleanup = () => {
         try { ytdlProc.kill("SIGKILL"); } catch {}
@@ -447,7 +480,6 @@ export async function createDownloadStream(
       if (signal) signal.addEventListener("abort", cleanup);
       ytdlProc.on("error", (err) => { console.warn("ytdl error:", err); cleanup(); });
       ffmpegProc.on("error", (err) => { console.warn("ffmpeg error:", err); cleanup(); });
-      ffmpegProc.stdin.on("error", () => {});
 
       const webStream = Readable.toWeb(ffmpegProc.stdout) as ReadableStream<Uint8Array>;
       return { stream: webStream, contentType, fileExt };
@@ -459,19 +491,26 @@ export async function createDownloadStream(
   // 2. Video Streaming: Pipe through ffmpeg to guarantee genuine fragmented MP4 container
   if (!isAudio && ffmpegBinary && pythonOk) {
     try {
-      let formatSpec = "bestvideo+bestaudio/best";
+      let formatSpec =
+        "bestvideo[vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best";
       if (quality === "2160p" || quality === "4k") {
-        formatSpec = "bestvideo[height<=2160]+bestaudio/best[height<=2160]/401+251/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=2160]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best";
       } else if (quality === "1440p" || quality === "2k") {
-        formatSpec = "bestvideo[height<=1440]+bestaudio/best[height<=1440]/400+251/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=1440]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best";
       } else if (quality === "1080p") {
-        formatSpec = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/137+251/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=1080]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best";
       } else if (quality === "720p") {
-        formatSpec = "bestvideo[height<=720]+bestaudio/best[height<=720]/136+251/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=720]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=720]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best";
       } else if (quality === "480p") {
-        formatSpec = "bestvideo[height<=480]+bestaudio/best[height<=480]/135+251/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=480]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=480]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best";
       } else if (quality === "360p") {
-        formatSpec = "bestvideo[height<=360]+bestaudio/best[height<=360]/18/best";
+        formatSpec =
+          "bestvideo[vcodec^=avc1][height<=360]+bestaudio[ext=m4a]/bestvideo[ext=mp4][height<=360]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best";
       }
 
       const ytdlProc = spawn(
@@ -479,7 +518,6 @@ export async function createDownloadStream(
         [
           "-m", "yt_dlp",
           "--ffmpeg-location", ffmpegBinary,
-          "--js-runtimes", "node",
           "--no-warnings",
           "-f", formatSpec,
           "-o", "-",
@@ -493,6 +531,8 @@ export async function createDownloadStream(
         ffmpegBinary,
         [
           "-i", "pipe:0",
+          "-map", "0:v:0?",
+          "-map", "0:a:0?",
           "-c:v", "copy",
           "-c:a", "aac",
           "-movflags", "frag_keyframe+empty_moov+default_base_moof",
@@ -502,7 +542,22 @@ export async function createDownloadStream(
         { stdio: ["pipe", "pipe", "pipe"] }
       );
 
+      // Prevent pipe deadlocks by actively draining stderr
+      ytdlProc.stderr.on("data", (chunk) => {
+        const msg = chunk.toString();
+        if (msg.includes("ERROR:")) console.warn("[yt-dlp video error]:", msg.trim());
+      });
+      ytdlProc.stderr.resume();
+
+      ffmpegProc.stderr.on("data", (chunk) => {
+        const msg = chunk.toString();
+        if (msg.includes("Error") || msg.includes("error")) console.warn("[ffmpeg video error]:", msg.trim());
+      });
+      ffmpegProc.stderr.resume();
+
       ytdlProc.stdout.pipe(ffmpegProc.stdin);
+      ytdlProc.stdout.on("error", () => {});
+      ffmpegProc.stdin.on("error", () => {});
 
       const cleanup = () => {
         try { ytdlProc.kill("SIGKILL"); } catch {}
@@ -512,7 +567,6 @@ export async function createDownloadStream(
       if (signal) signal.addEventListener("abort", cleanup);
       ytdlProc.on("error", (err) => { console.warn("ytdl video error:", err); cleanup(); });
       ffmpegProc.on("error", (err) => { console.warn("ffmpeg remux error:", err); cleanup(); });
-      ffmpegProc.stdin.on("error", () => {});
 
       const webStream = Readable.toWeb(ffmpegProc.stdout) as ReadableStream<Uint8Array>;
       return { stream: webStream, contentType, fileExt };
