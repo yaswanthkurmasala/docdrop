@@ -24,6 +24,7 @@ import { GlobalDropzone } from "@/components/GlobalDropzone";
 import { CommandPalette } from "@/components/CommandPalette";
 import { DocumentChatDrawer } from "@/components/DocumentChatDrawer";
 import { PhoneTransferModal } from "@/components/PhoneTransferModal";
+import { setChainedDocument } from "@/lib/pdf-tools/chained-document";
 import { MessageSquare, Smartphone } from "lucide-react";
 
 interface DocDropStudioProps {
@@ -46,6 +47,24 @@ export function DocDropStudio({
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+  const [phoneModalCurrentFile, setPhoneModalCurrentFile] = useState<File | null>(null);
+
+  // Global listener for "Send to Phone" from any tool
+  useEffect(() => {
+    const handleOpenPhoneTransfer = (e: any) => {
+      if (e.detail?.file) {
+        setPhoneModalCurrentFile(e.detail.file);
+      }
+      setIsPhoneModalOpen(true);
+    };
+    window.addEventListener("docdrop:open-phone-transfer", handleOpenPhoneTransfer);
+    return () => window.removeEventListener("docdrop:open-phone-transfer", handleOpenPhoneTransfer);
+  }, []);
+
+  const handleReceiveFileFromPhone = (file: File) => {
+    setPhoneModalCurrentFile(file);
+    setChainedDocument(file);
+  };
 
   const { user, setProStatus } = useAuth();
 
@@ -465,6 +484,8 @@ export function DocDropStudio({
       <PhoneTransferModal
         isOpen={isPhoneModalOpen}
         onClose={() => setIsPhoneModalOpen(false)}
+        currentFile={phoneModalCurrentFile}
+        onReceiveFile={handleReceiveFileFromPhone}
       />
 
       {/* Floating Quick Action Instruments: Chat with PDF & Drop to Phone */}

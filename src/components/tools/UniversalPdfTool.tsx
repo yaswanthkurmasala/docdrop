@@ -54,6 +54,7 @@ import {
   AlignRight,
   Globe,
   X,
+  Smartphone,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
@@ -9181,6 +9182,41 @@ export function UniversalPdfTool({ toolId, isPro, onOpenPricing }: UniversalPdfT
               >
                 <Download className="w-4 h-4" />
                 <span>Download {computeEffectiveFileName(result.fileName, customFileName).split(".").pop()?.toUpperCase()}</span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  if (!result) return;
+                  let blob: Blob;
+                  if (result.type === "pdf" && result.pdfBytes) {
+                    blob = new Blob([result.pdfBytes as any], { type: "application/pdf" });
+                  } else if (result.type === "docx" && result.docxBlob) {
+                    blob = result.docxBlob;
+                  } else if (result.type === "xlsx" && result.excelBuffer) {
+                    blob = new Blob([result.excelBuffer], {
+                      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    });
+                  } else if (result.type === "zip" && result.zipBlob) {
+                    blob = result.zipBlob;
+                  } else if (result.textContent) {
+                    blob = new Blob([result.textContent], { type: "text/markdown;charset=utf-8" });
+                  } else {
+                    return;
+                  }
+
+                  const finalName = computeEffectiveFileName(result.fileName, customFileName);
+                  const fileObj = new File([blob], finalName, { type: blob.type || "application/octet-stream" });
+                  window.dispatchEvent(
+                    new CustomEvent("docdrop:open-phone-transfer", { detail: { file: fileObj } })
+                  );
+                }}
+                className="flex items-center justify-center gap-2 px-5 py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold rounded-2xl shadow-xs transition-all cursor-pointer"
+                title="Send processed document directly to your smartphone"
+              >
+                <Smartphone className="w-4 h-4" />
+                <span>Send to Phone</span>
               </motion.button>
 
               {result.pdfBytes && (

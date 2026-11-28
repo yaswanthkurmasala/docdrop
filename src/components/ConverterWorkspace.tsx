@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   AlertCircle,
   FileCode2,
+  Smartphone,
 } from "lucide-react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { motionTokens } from "@/lib/motion-tokens";
@@ -805,6 +806,30 @@ Please review the document above and assist me with the following:
                 >
                   <FileText className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
                   <span>Download PDF</span>
+                </motion.button>
+
+                {/* 5. Drop to Phone */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    if (result?.markdown) {
+                      const effectiveName = computeEffectiveFileName(
+                        `${result.metadata.fileName.replace(/\.[^/.]+$/, "")}.md`,
+                        customFileName
+                      );
+                      const blob = new Blob([result.markdown], { type: "text/markdown;charset=utf-8" });
+                      const fileObj = new File([blob], effectiveName, { type: "text/markdown" });
+                      window.dispatchEvent(
+                        new CustomEvent("docdrop:open-phone-transfer", { detail: { file: fileObj } })
+                      );
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                  title="Send document directly to your smartphone"
+                >
+                  <Smartphone className="w-4 h-4 shrink-0" />
+                  <span>Send to Phone</span>
                 </motion.button>
 
                 {/* 5. Save to Firestore Cloud */}

@@ -27,6 +27,7 @@ import {
   ExternalLink,
   ShieldCheck,
   Zap,
+  Smartphone,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { CustomFileNameInput, computeEffectiveFileName } from "@/components/CustomFileNameInput";
@@ -747,6 +748,24 @@ export function VisualPageOrganizerTool({
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (resultBytes) {
+                        const blob = new Blob([resultBytes as unknown as BlobPart], { type: "application/pdf" });
+                        const fileObj = new File([blob], resultFileName, { type: "application/pdf" });
+                        window.dispatchEvent(
+                          new CustomEvent("docdrop:open-phone-transfer", { detail: { file: fileObj } })
+                        );
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                    title="Send organized PDF directly to your smartphone"
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Send to Phone</span>
                   </button>
                 </div>
               </div>

@@ -25,6 +25,7 @@ import {
   Zap,
   Stamp,
   Lock,
+  Smartphone,
 } from "lucide-react";
 import { motionTokens } from "@/lib/motion-tokens";
 import { StepWorkflowTracker } from "@/components/StepWorkflowTracker";
@@ -773,6 +774,24 @@ export function MergePdfTool({ isPro, onOpenPricing }: MergePdfToolProps) {
                 className="w-full sm:w-auto px-6 py-3 bg-zinc-950 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-xs font-bold rounded-2xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 min-w-[200px]"
               >
                 <Download className="w-4 h-4" /> Download Merged PDF
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (result?.mergedBytes) {
+                    const finalName = computeEffectiveFileName(result.fileName, customFileName);
+                    const blob = new Blob([result.mergedBytes as unknown as BlobPart], { type: "application/pdf" });
+                    const fileObj = new File([blob], finalName, { type: "application/pdf" });
+                    window.dispatchEvent(
+                      new CustomEvent("docdrop:open-phone-transfer", { detail: { file: fileObj } })
+                    );
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold rounded-2xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2"
+                title="Send merged PDF directly to your smartphone"
+              >
+                <Smartphone className="w-4 h-4" /> Send to Phone
               </button>
 
               {user && (
